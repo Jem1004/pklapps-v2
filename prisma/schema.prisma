@@ -1,0 +1,149 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enum untuk role pengguna
+enum Role {
+  STUDENT
+  TEACHER
+  ADMIN
+}
+
+// Model User - untuk semua pengguna (siswa, guru, admin)
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  username     String   @unique // Field baru untuk login
+  name         String
+  passwordHash String   // Field baru untuk menyimpan hash password
+  role         Role
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relasi untuk siswa
+  student Student?
+  
+  // Relasi untuk guru
+  teacher Teacher?
+
+  @@map("users")
+}
+
+// Model Student - data khusus siswa
+model Student {
+  id       String @id @default(cuid())
+  userId   String @unique
+  nisn     String @unique // Nomor Induk Siswa Nasional
+  kelas    String
+  jurusan  String
+  
+  // Relasi ke User
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Relasi ke Tempat PKL
+  tempatPklId String?
+  tempatPkl   TempatPkl? @relation(fields: [tempatPklId], references: [id])
+  
+  // Relasi ke Guru Pembimbing
+  teacherId String?
+  teacher   Teacher? @relation(fields: [teacherId], references: [id])
+  
+  // Relasi ke Jurnal
+  jurnals Jurnal[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("students")
+}
+
+// Model Teacher - data khusus guru pembimbing
+model Teacher {
+  id   String @id @default(cuid())
+  userId String @unique
+  nip    String @unique // Nomor Induk Pegawai
+  
+  // Relasi ke User
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Relasi ke siswa yang dibimbing
+  students Student[]
+  
+  // Relasi ke komentar jurnal
+  comments JurnalComment[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("teachers")
+}
+
+// Model TempatPkl - tempat praktik kerja lapangan
+model TempatPkl {
+  id          String @id @default(cuid())
+  nama        String
+  alamat      String
+  telepon     String?
+  email       String?
+  namaContact String? // Nama kontak person di tempat PKL
+  
+  // Relasi ke siswa
+  students Student[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("tempat_pkl")
+}
+
+// Model Jurnal - jurnal harian siswa
+model Jurnal {
+  id          String   @id @default(cuid())
+  tanggal     DateTime @db.Date
+  kegiatan    String   @db.Text
+  dokumentasi String?  // URL atau path file dokumentasi (opsional)
+  
+  // Relasi ke Student
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  // Relasi ke komentar
+  comments JurnalComment[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Constraint: satu siswa hanya bisa membuat satu jurnal per hari
+  @@unique([studentId, tanggal])
+  @@map("jurnals")
+}
+
+// Model JurnalComment - komentar guru pada jurnal siswa
+model JurnalComment {
+  id      String @id @default(cuid())
+  comment String @db.Text
+  
+  // Relasi ke Jurnal
+  jurnalId String
+  jurnal   Jurnal @relation(fields: [jurnalId], references: [id], onDelete: Cascade)
+  
+  // Relasi ke Teacher
+  teacherId String
+  teacher   Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("jurnal_comments")
+}

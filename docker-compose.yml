@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: jurnal-pkl-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: jurnal_pkl_db
+      POSTGRES_USER: jurnal_user
+      POSTGRES_PASSWORD: jurnal_password123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - jurnal-network
+
+volumes:
+  postgres_data:
+
+networks:
+  jurnal-network:
+    driver: bridge
