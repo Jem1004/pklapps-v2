@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/../lib/auth'
-import { prisma } from '@/../lib/prisma'
+import { authOptions } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
 
 export async function GET(request: NextRequest) {
   try {
@@ -59,7 +59,23 @@ export async function GET(request: NextRequest) {
     })
 
     // Transform data to include journal statistics
-    const studentsWithStats = students.map(student => ({
+    const studentsWithStats = students.map((student: {
+      id: string;
+      user: {
+        name: string;
+        username: string;
+      };
+      nisn: string;
+      kelas: string;
+      jurusan: string;
+      tempatPkl: {
+        nama: string;
+        alamat: string;
+      } | null;
+      jurnals: {
+        tanggal: Date;
+      }[];
+    }) => ({
       id: student.id,
       user: student.user,
       nisn: student.nisn,

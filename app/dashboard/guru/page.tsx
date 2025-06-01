@@ -3,12 +3,12 @@
 import { useSession, signOut } from "../../../node_modules/next-auth/react"
 import { useRouter } from "../../../node_modules/next/navigation"
 import { useEffect, useState } from "react"
-import { Button } from "@/../components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/../components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { LogOut, Users, FileText, UserCheck } from "lucide-react"
-import JurnalGuruGroupedList from "@/../components/guru/JurnalGuruGroupedList"
-import JurnalGuruList from "@/../components/guru/JurnalGuruList"
-import StudentBimbinganList from "@/../components/guru/StudentBimbinganList"
+import JurnalGuruGroupedList from "@/components/guru/JurnalGuruGroupedList"
+import JurnalGuruList from "@/components/guru/JurnalGuruList"
+import StudentBimbinganList from "@/components/guru/StudentBimbinganList"
 
 export default function GuruDashboard() {
   const { data: session, status } = useSession()

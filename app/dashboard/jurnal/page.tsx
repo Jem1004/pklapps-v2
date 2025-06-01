@@ -2,15 +2,15 @@
 import { useState, useEffect, useRef } from "react"
 import { useSession, signOut } from "../../../node_modules/next-auth/react"
 import { useReactToPrint } from 'react-to-print'
-import { Card, CardContent, CardHeader, CardTitle } from "@/../components/ui/card"
-import { Button } from "@/../components/ui/button"
-import { Input } from "@/../components/ui/input"
-import { Textarea } from "@/../components/ui/textarea"
-import { Label } from "@/../components/ui/label"
-import { formatDate, formatDateForInput } from "@/../lib/utils"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
+import { formatDate, formatDateForInput } from "@/lib/utils"
 import { CalendarDays, FileText, Edit, Save, X, List, LogOut, Download } from "lucide-react"
-import JurnalList from "@/../components/JurnalList"
-import PrintableJurnal from "@/../components/PrintableJurnal"
+import JurnalList from "@/components/JurnalList"
+import PrintableJurnal from "@/components/PrintableJurnal"
 
 interface Jurnal {
   id: string

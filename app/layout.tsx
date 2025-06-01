@@ -1,5 +1,5 @@
 import type { Metadata } from '../node_modules/next'
-import NextAuthSessionProvider from '@/../components/providers/session-provider'
+import NextAuthSessionProvider from '@/components/providers/session-provider'
 import '../src/app/globals.css'
 
 export const metadata: Metadata = {

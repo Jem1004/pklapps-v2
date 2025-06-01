@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from '../../../../node_modules/next/server'
-import { getServerSession } from '../../../../node_modules/next-auth/next'
-import { authOptions } from '@/../lib/auth'
-import { prisma } from '@/../lib/prisma'
-import bcrypt from '../../../../node_modules/bcryptjs'
+import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
+import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 
 const importUserSchema = z.object({

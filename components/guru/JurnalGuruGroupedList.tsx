@@ -1,12 +1,12 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/../components/ui/card"
-import { Button } from "@/../components/ui/button"
-import { Badge } from "@/../components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/../components/ui/select"
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/../components/ui/accordion"
-import { formatDate } from "@/../lib/utils"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { formatDate } from "@/lib/utils"
 import { Calendar, FileText, MessageSquare, Edit, ExternalLink, User, Building, Users, MapPin } from "lucide-react"
 import KomentarDialog from "./KomentarDialog"
 

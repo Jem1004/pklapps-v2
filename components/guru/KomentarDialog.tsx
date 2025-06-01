@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Button } from "@/../components/ui/button"
-import { Textarea } from "@/../components/ui/textarea"
-import { Label } from "@/../components/ui/label"
+import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
@@ -11,8 +11,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/../components/ui/dialog"
-import { formatDate } from "@/../lib/utils"
+} from "@/components/ui/dialog"
+import { formatDate } from "@/lib/utils"
 import { Save, X } from "lucide-react"
 
 interface JurnalComment {

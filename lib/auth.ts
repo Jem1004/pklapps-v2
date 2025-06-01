@@ -2,7 +2,7 @@ import { NextAuthOptions } from "../node_modules/next-auth"
 import CredentialsProvider from "../node_modules/next-auth/providers/credentials"
 import bcrypt from "../node_modules/bcryptjs"
 import { prisma } from "./prisma"
-import { Role } from "../src/generated/prisma"
+import { Role } from "@/src/generated/prisma" // Ubah dari "../src/generated/prisma"
 
 export const authOptions: NextAuthOptions = {
   providers: [

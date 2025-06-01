@@ -3,13 +3,13 @@
 import { useSession, signOut } from "../../../node_modules/next-auth/react"
 import { useRouter } from "../../../node_modules/next/navigation"
 import { useEffect, useState } from "react"
-import { Button } from "@/../components/ui/button"
+import { Button } from "@/components/ui/button"
 import { LogOut, Users, Building, UserCheck, BarChart3, Upload } from "lucide-react"
-import UserManagement from "@/../components/admin/UserManagement"
-import TempatPklManagement from "@/../components/admin/TempatPklManagement"
-import StudentMapping from "@/../components/admin/StudentMapping"
-import ActivityMonitoring from "@/../components/admin/ActivityMonitoring"
-import ImportUsers from "@/../components/admin/ImportUsers"
+import UserManagement from "@/components/admin/UserManagement"
+import TempatPklManagement from "@/components/admin/TempatPklManagement"
+import StudentMapping from "@/components/admin/StudentMapping"
+import ActivityMonitoring from "@/components/admin/ActivityMonitoring"
+import ImportUsers from "@/components/admin/ImportUsers"
 
 type TabType = 'users' | 'tempat-pkl' | 'mapping' | 'monitoring' | 'import'
 

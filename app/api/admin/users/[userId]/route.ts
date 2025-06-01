@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from '../../../../../node_modules/next/server'
-import { getServerSession } from '../../../../../node_modules/next-auth/next'
-import { authOptions } from '@/../lib/auth'
-import { prisma } from '@/../lib/prisma'
-import bcrypt from '../../../../../node_modules/bcryptjs'
+import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
+import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 
 const userUpdateSchema = z.object({
@@ -19,7 +19,7 @@ const userUpdateSchema = z.object({
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -31,7 +31,7 @@ export async function DELETE(
       )
     }
 
-    const { userId } = params
+    const { userId } = await params
 
     // Check if user exists
     const existingUser = await prisma.user.findUnique({
@@ -73,7 +73,7 @@ export async function DELETE(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -85,7 +85,7 @@ export async function PUT(
       )
     }
 
-    const { userId } = params
+    const { userId } = await params
     const body = await request.json()
     const validatedData = userUpdateSchema.parse(body)
 
