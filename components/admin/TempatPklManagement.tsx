@@ -53,13 +53,20 @@ export default function TempatPklManagement() {
       const result = await response.json()
       
       if (response.ok) {
-        // Fix: API returns array directly, not wrapped in data property
-        setTempatPkl(result || [])
+        // Fix: Handle the new API response format with success/data structure
+        if (result.success) {
+          setTempatPkl(result.data || [])
+        } else {
+          console.error('Error fetching tempat PKL:', result.message)
+          setTempatPkl([]) // Set empty array on error
+        }
       } else {
-        console.error('Error fetching tempat PKL:', result.error)
+        console.error('Error fetching tempat PKL:', result.error || result.message)
+        setTempatPkl([]) // Set empty array on error
       }
     } catch (error) {
       console.error('Error fetching tempat PKL:', error)
+      setTempatPkl([]) // Set empty array on error
     } finally {
       setIsLoading(false)
     }

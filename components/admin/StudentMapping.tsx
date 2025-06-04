@@ -81,23 +81,28 @@ export default function StudentMapping() {
         fetch('/api/admin/teachers'),
         fetch('/api/admin/tempat-pkl')
       ])
-
+  
       if (studentsRes.ok) {
         const studentsData = await studentsRes.json()
         setStudents(studentsData)
       }
-
+  
       if (teachersRes.ok) {
         const teachersData = await teachersRes.json()
         setTeachers(teachersData)
       }
-
+  
       if (locationsRes.ok) {
         const locationsData = await locationsRes.json()
-        setTempatPkl(locationsData)
+        // Fix: Access the data property from the API response
+        setTempatPkl(locationsData.data || [])
       }
     } catch (error) {
       console.error('Error fetching data:', error)
+      // Set empty arrays on error to prevent map function errors
+      setStudents([])
+      setTeachers([])
+      setTempatPkl([])
     } finally {
       setLoading(false)
     }

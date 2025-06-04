@@ -17,7 +17,7 @@ export async function GET() {
     const session = await getServerSession(authOptions)
     
     if (!session || session.user.role !== "ADMIN") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 })
     }
 
     const tempatPkl = await prisma.tempatPkl.findMany({
@@ -33,10 +33,10 @@ export async function GET() {
       }
     })
 
-    return NextResponse.json(tempatPkl)
+    return NextResponse.json({ success: true, data: tempatPkl })
   } catch (error) {
     console.error('Error fetching tempat PKL:', error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return NextResponse.json({ success: false, message: "Internal server error" }, { status: 500 })
   }
 }
 
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions)
     
     if (!session || session.user.role !== "ADMIN") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 })
     }
 
     const body = await request.json()
@@ -55,9 +55,6 @@ export async function POST(request: NextRequest) {
       data: {
         nama,
         alamat,
-        telepon: telepon || null,
-        email: email || null,
-        namaContact: namaContact || null
       },
       include: {
         _count: {
@@ -68,13 +65,13 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    return NextResponse.json(tempatPkl, { status: 201 })
+    return NextResponse.json({ success: true, data: tempatPkl }, { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 })
+      return NextResponse.json({ success: false, message: "Validation error", errors: error.errors }, { status: 400 })
     }
     console.error('Error creating tempat PKL:', error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return NextResponse.json({ success: false, message: "Internal server error" }, { status: 500 })
   }
 }
 
@@ -97,9 +94,6 @@ export async function PUT(request: NextRequest) {
       data: {
         nama,
         alamat,
-        telepon: telepon || null,
-        email: email || null,
-        namaContact: namaContact || null
       },
       include: {
         _count: {

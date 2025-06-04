@@ -1,6 +1,7 @@
 import type { Metadata } from '../node_modules/next'
 import NextAuthSessionProvider from '@/components/providers/session-provider'
 import '../src/app/globals.css'
+import { Toaster } from "sonner"
 
 export const metadata: Metadata = {
   title: 'Jurnal PKL SMK',
@@ -17,6 +18,7 @@ export default function RootLayout({
       <body>
         <NextAuthSessionProvider>
           {children}
+          <Toaster position="top-center" richColors />
         </NextAuthSessionProvider>
       </body>
     </html>

@@ -64,7 +64,7 @@ async function main() {
     },
   })
 
-  // Create Tempat PKL
+  // Create Tempat PKL - Fixed to match current schema
   const tempatPkl1 = await prisma.tempatPkl.upsert({
     where: { id: 'tempat1' },
     update: {},
@@ -72,8 +72,9 @@ async function main() {
       id: 'tempat1',
       nama: 'PT. Teknologi Maju',
       alamat: 'Jl. Sudirman No. 123, Jakarta',
-      telepon: '021-1234567',
-      namaContact: 'Ibu Sari Dewi',
+      // Removed telepon and namaContact as they don't exist in current schema
+      // pinAbsensi will be auto-generated with default cuid()
+      // isActive defaults to true
     },
   })
 
@@ -84,11 +85,11 @@ async function main() {
       id: 'tempat2',
       nama: 'CV. Digital Kreatif',
       alamat: 'Jl. Gatot Subroto No. 456, Bandung',
-      telepon: '022-7654321',
-      namaContact: 'Bapak Andi Wijaya',
+      // Removed telepon and namaContact as they don't exist in current schema
     },
   })
 
+  // ... existing code ...
   // Create Student Users
   const student1 = await prisma.user.upsert({
     where: { username: 'student1' },

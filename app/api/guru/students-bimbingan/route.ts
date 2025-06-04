@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Teacher not found' }, { status: 404 })
     }
 
-    // Get students supervised by this teacher with journal statistics
+    // Get students supervised by this teacher with journal and attendance statistics
     const students = await prisma.student.findMany({
       where: {
         teacherId: teacher.id
@@ -49,6 +49,15 @@ export async function GET(request: NextRequest) {
           orderBy: {
             tanggal: 'desc'
           }
+        },
+        absensis: {
+          select: {
+            tanggal: true,
+            tipe: true
+          },
+          orderBy: {
+            tanggal: 'desc'
+          }
         }
       },
       orderBy: {
@@ -58,24 +67,8 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Transform data to include journal statistics
-    const studentsWithStats = students.map((student: {
-      id: string;
-      user: {
-        name: string;
-        username: string;
-      };
-      nisn: string;
-      kelas: string;
-      jurusan: string;
-      tempatPkl: {
-        nama: string;
-        alamat: string;
-      } | null;
-      jurnals: {
-        tanggal: Date;
-      }[];
-    }) => ({
+    // Transform data to include statistics
+    const studentsWithStats = students.map((student) => ({
       id: student.id,
       user: student.user,
       nisn: student.nisn,
@@ -83,7 +76,9 @@ export async function GET(request: NextRequest) {
       jurusan: student.jurusan,
       tempatPkl: student.tempatPkl,
       totalJurnals: student.jurnals.length,
-      lastJurnalDate: student.jurnals.length > 0 ? student.jurnals[0].tanggal : null
+      lastJurnalDate: student.jurnals.length > 0 ? student.jurnals[0].tanggal : null,
+      totalAbsensi: student.absensis.length,
+      lastAbsensiDate: student.absensis.length > 0 ? student.absensis[0].tanggal : null
     }))
 
     return NextResponse.json({

@@ -18,11 +18,13 @@ export default withAuth(
 
     // Jika user login tapi mengakses dashboard yang salah, redirect ke dashboard yang benar
     if (token && pathname.startsWith("/dashboard")) {
-      const correctDashboard = getDashboardUrl(token.role as string)
+      const allowedPaths = getAllowedDashboardPaths(token.role as string)
       
-      // Cek apakah user mengakses dashboard yang sesuai dengan rolenya
-      if (!pathname.startsWith(correctDashboard)) {
-        return NextResponse.redirect(new URL(correctDashboard, req.url))
+      // Cek apakah user mengakses path yang diizinkan untuk rolenya
+      const isAllowed = allowedPaths.some(path => pathname.startsWith(path))
+      
+      if (!isAllowed) {
+        return NextResponse.redirect(new URL(getDashboardUrl(token.role as string), req.url))
       }
     }
 
@@ -52,7 +54,7 @@ export default withAuth(
 function getDashboardUrl(role: string): string {
   switch (role) {
     case "STUDENT":
-      return "/dashboard/jurnal"
+      return "/dashboard/jurnal" // Default landing page untuk student
     case "TEACHER":
       return "/dashboard/guru"
     case "ADMIN":
@@ -62,9 +64,24 @@ function getDashboardUrl(role: string): string {
   }
 }
 
+// Fungsi baru untuk menentukan path yang diizinkan per role
+function getAllowedDashboardPaths(role: string): string[] {
+  switch (role) {
+    case "STUDENT":
+      return ["/dashboard/jurnal", "/dashboard/absensi"]
+      case "TEACHER":
+        return ["/dashboard/guru", "/dashboard/guru/absensi"]
+      case "ADMIN":
+        return ["/dashboard/admin", "/dashboard/admin/absensi"]
+    default:
+      return []
+  }
+}
+
 export const config = {
   matcher: [
     "/dashboard/:path*",
-    "/auth/:path*"
+    "/auth/:path*",
+    "/(absensi)/:path*"  // Tambahkan ini
   ]
 }
