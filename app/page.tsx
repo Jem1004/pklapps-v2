@@ -85,19 +85,19 @@ export default function LandingPage() {
 
   const demoData = [
     {
-      name: 'Ahmad Rizki',
+      name: 'Bos Ishan',
       status: 'Hadir',
       time: '07:30',
       location: 'PT. Teknologi Maju'
     },
     {
-      name: 'Siti Nurhaliza',
+      name: 'King Dayat',
       status: 'Hadir',
       time: '07:45',
-      location: 'CV. Digital Solutions'
+      location: 'CV. Astro Digital Solution'
     },
     {
-      name: 'Budi Santoso',
+      name: 'Jem',
       status: 'Hadir',
       time: '08:00',
       location: 'Toko Elektronik Jaya'
@@ -128,7 +128,7 @@ export default function LandingPage() {
                 <GraduationCap className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">PKL System</h1>
+                <h1 className="text-xl font-bold text-gray-900">PKL SMK MUTU</h1>
                 <p className="text-xs text-gray-500">SMK Management</p>
               </div>
             </div>
@@ -153,12 +153,12 @@ export default function LandingPage() {
               transition={{ duration: 0.6 }}
             >
               <Badge className="mb-4 bg-blue-100 text-blue-700 hover:bg-blue-100">
-                🎓 Sistem PKL SMK Modern
+                🎓 PKL SMK MUTU PPU
               </Badge>
               <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
-                Sistem PKL SMK
+                PKL SMK
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-green-600">
-                  {' '}Digital
+                  {' '}MUTU PPU
                 </span>
               </h1>
               <p className="text-xl text-gray-600 mb-8 leading-relaxed">
@@ -173,14 +173,6 @@ export default function LandingPage() {
                 >
                   <ArrowRight className="h-5 w-5 mr-2" />
                   Mulai Sekarang
-                </Button>
-                <Button 
-                  variant="outline"
-                  size="lg"
-                  className="h-12 px-8 text-base border-2 hover:bg-gray-50"
-                >
-                  <Eye className="h-5 w-5 mr-2" />
-                  Lihat Demo
                 </Button>
               </div>
             </motion.div>
@@ -375,18 +367,18 @@ export default function LandingPage() {
             viewport={{ once: true }}
           >
             <h3 className="text-3xl md:text-4xl font-bold text-white mb-4">
-              Siap Memulai Digitalisasi PKL?
+              Punya pertanyaan?
             </h3>
             <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-              Bergabunglah dengan sistem PKL modern yang memudahkan monitoring dan administrasi
+              Silahkan tanyakan pada admin, melalui tombol link dibawah ini
             </p>
             <Button 
-              onClick={() => router.push('/auth/login')}
+              onClick={() => router.push('https://wa.me/+6282158736885')}
               size="lg"
               className="bg-white text-blue-600 hover:bg-gray-100 shadow-lg h-12 px-8 text-base font-semibold"
             >
               <ArrowRight className="h-5 w-5 mr-2" />
-              Masuk ke Sistem
+              Tanya Admin
             </Button>
           </motion.div>
         </div>
@@ -403,7 +395,7 @@ export default function LandingPage() {
                 </div>
                 <div>
                   <h3 className="text-xl font-bold">PKL System</h3>
-                  <p className="text-sm text-gray-400">SMK Management</p>
+                  <p className="text-sm text-gray-400">SMK MUTU PPU</p>
                 </div>
               </div>
               <p className="text-gray-400 text-sm leading-relaxed">
@@ -424,9 +416,8 @@ export default function LandingPage() {
             <div>
               <h4 className="font-semibold mb-4">Support</h4>
               <ul className="space-y-2 text-sm text-gray-400">
-                <li>📧 support@pklsystem.com</li>
-                <li>📱 +62 xxx-xxxx-xxxx</li>
-                <li>📍 SMK Negeri/Swasta</li>
+                <li>📧 admin@smkmutuppu.com</li>
+                <li>📍 SMK Muhammadiyah 1 PPU</li>
                 <li>🕒 Senin - Jumat, 08:00-16:00</li>
               </ul>
             </div>
@@ -434,7 +425,7 @@ export default function LandingPage() {
           
           <div className="border-t border-gray-800 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
             <p className="text-sm text-gray-400">
-              © 2024 PKL System. All rights reserved.
+              © 2025 PKL System. Develop by Astrodigiso.
             </p>
             <div className="flex items-center gap-4 mt-4 md:mt-0">
               <span className="text-sm text-gray-400">Version 1.0.0</span>
