@@ -1,6 +1,6 @@
-import { Role } from "@/src/generated/prisma"
-import "../node_modules/next-auth"
-import "../node_modules/next-auth/jwt"
+import { Role } from "@prisma/client"
+import "next-auth"
+import "next-auth/jwt"
 
 declare module "next-auth" {
   interface User {

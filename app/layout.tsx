@@ -1,4 +1,4 @@
-import type { Metadata } from '../node_modules/next'
+import type { Metadata } from 'next'
 import NextAuthSessionProvider from '@/components/providers/session-provider'
 import '../src/app/globals.css'
 import { Toaster } from "sonner"

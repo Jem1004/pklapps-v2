@@ -49,6 +49,10 @@ model User {
   // Relasi untuk guru
   teacher Teacher?
 
+  // Database indexes for performance optimization
+  @@index([role])
+  @@index([createdAt])
+  @@index([name])
   @@map("users")
 }
 
@@ -80,6 +84,13 @@ model Student {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Database indexes for performance optimization
+  @@index([kelas])
+  @@index([jurusan])
+  @@index([tempatPklId])
+  @@index([teacherId])
+  @@index([kelas, jurusan])
+  @@index([createdAt])
   @@map("students")
 }
 
@@ -129,6 +140,7 @@ model Jurnal {
   id          String   @id @default(cuid())
   tanggal     DateTime @db.Date
   kegiatan    String   @db.Text
+  keterangan  String?  @db.Text // Keterangan tambahan dari siswa (opsional)
   dokumentasi String? // URL atau path file dokumentasi (opsional)
 
   // Relasi ke Student
@@ -143,6 +155,11 @@ model Jurnal {
 
   // Constraint: satu siswa hanya bisa membuat satu jurnal per hari
   @@unique([studentId, tanggal])
+  // Database indexes for performance optimization
+  @@index([tanggal])
+  @@index([studentId])
+  @@index([createdAt])
+  @@index([tanggal, studentId])
   @@map("jurnals")
 }
 
@@ -186,6 +203,14 @@ model Absensi {
 
   // Constraint: satu siswa hanya bisa absen satu kali per hari per tipe
   @@unique([studentId, tanggal, tipe])
+  // Database indexes for performance optimization
+  @@index([tanggal])
+  @@index([studentId])
+  @@index([tempatPklId])
+  @@index([tipe])
+  @@index([tanggal, studentId])
+  @@index([tanggal, tipe])
+  @@index([createdAt])
   @@map("absensis")
 }
 

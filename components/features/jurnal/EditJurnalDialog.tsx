@@ -34,15 +34,12 @@ export default function EditJurnalDialog({ jurnal, isOpen, onClose, onSuccess }:
     setIsLoading(true)
 
     try {
-      const response = await fetch('/api/jurnal', {
+      const response = await fetch(`/api/jurnal/${jurnal.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          id: jurnal.id,
-          ...formData
-        })
+        body: JSON.stringify(formData)
       })
 
       const result = await response.json()

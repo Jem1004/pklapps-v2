@@ -1,13 +1,3 @@
-import { PrismaClient } from '../node_modules/@prisma/client'
-
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-}
-
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    log: ['query'],
-  })
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+// Re-export the optimized prisma client from database config
+export { prisma, checkDatabaseHealth, getDatabaseInfo, withQueryTiming, batchOperations, databaseCleanup } from '@/lib/database/config'
+export { prisma as default } from '@/lib/database/config'

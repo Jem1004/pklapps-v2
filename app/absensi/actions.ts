@@ -5,7 +5,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 
-export async function submitAbsensi(pinAbsensi: string) {
+export async function submitAbsensi(pinAbsensi: string, tipe?: 'MASUK' | 'PULANG') {
   try {
     const session = await getServerSession(authOptions)
     
@@ -68,17 +68,22 @@ export async function submitAbsensi(pinAbsensi: string) {
     const currentMinute = now.getMinutes()
     const currentTime = currentHour + (currentMinute / 60)
 
-    // Tentukan tipe absensi berdasarkan waktu
+    // Gunakan tipe yang dipilih user, atau tentukan berdasarkan waktu jika tidak ada
     let tipeAbsensi: 'MASUK' | 'PULANG'
     
-    if (currentTime >= 7 && currentTime <= 10) {
-      tipeAbsensi = 'MASUK'
-    } else if (currentTime >= 13 && currentTime <= 17) {
-      tipeAbsensi = 'PULANG'
+    if (tipe) {
+      tipeAbsensi = tipe
     } else {
-      return {
-        success: false,
-        message: 'Absensi hanya dapat dilakukan pada jam 07:00-10:00 (masuk) atau 13:00-17:00 (pulang)'
+      // Fallback: tentukan berdasarkan waktu untuk backward compatibility
+      if (currentTime >= 7 && currentTime <= 10) {
+        tipeAbsensi = 'MASUK'
+      } else if (currentTime >= 13 && currentTime <= 17) {
+        tipeAbsensi = 'PULANG'
+      } else {
+        return {
+          success: false,
+          message: 'Absensi hanya dapat dilakukan pada jam 07:00-10:00 (masuk) atau 13:00-17:00 (pulang)'
+        }
       }
     }
 

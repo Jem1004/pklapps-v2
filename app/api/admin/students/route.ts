@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { handleApiError } from "@/lib/api/response"
+import { studentQueries, queryPerformance } from "@/lib/database/queryOptimization"
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions)
     
@@ -11,44 +12,43 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const students = await prisma.student.findMany({
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            username: true
-          }
-        },
-        tempatPkl: {
-          select: {
-            id: true,
-            nama: true,
-            alamat: true
-          }
-        },
-        teacher: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                username: true
-              }
-            }
-          }
-        }
-      },
-      orderBy: {
-        user: {
-          name: 'asc'
-        }
-      }
-    })
+    const { searchParams } = new URL(request.url)
+    const kelas = searchParams.get('kelas')
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '10')
+    const minimal = searchParams.get('minimal') === 'true'
+    const withMapping = searchParams.get('withMapping') === 'true'
+
+    let students
+
+    if (minimal) {
+      // For dropdown lists or minimal data requirements
+      students = await queryPerformance.withTiming(
+        'students-minimal',
+        () => studentQueries.getStudentsMinimal()
+      )
+    } else if (withMapping) {
+      // For student mapping page with teacher and tempatPkl relations
+      students = await queryPerformance.withTiming(
+        'students-with-mapping',
+        () => studentQueries.getStudentsWithMapping()
+      )
+    } else if (kelas) {
+      // Filter by class with pagination
+      students = await queryPerformance.withTiming(
+        'students-by-class',
+        () => studentQueries.getStudentsByClass(kelas, page, limit)
+      )
+    } else {
+      // Get all students with full details (consider adding pagination here too)
+      students = await queryPerformance.withTiming(
+        'students-full',
+        () => studentQueries.getStudentsMinimal() // Using minimal for performance
+      )
+    }
 
     return NextResponse.json(students)
   } catch (error) {
-    console.error('Error fetching students:', error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return handleApiError(error)
   }
 }

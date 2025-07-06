@@ -22,9 +22,11 @@ import {
   Plus,
   Loader2,
   MessageSquare,
-  BarChart3
+  BarChart3,
+  Trash2,
+  AlertTriangle
 } from "lucide-react"
-import JurnalList from "@/components/JurnalList"
+import JurnalList from "@/components/features/jurnal/JurnalList"
 import { toast } from "sonner"
 import StudentMinimalLayout from '@/components/layout/StudentMinimalLayout'
 
@@ -47,6 +49,8 @@ export default function DashboardJurnalPage() {
   })
   const [activeTab, setActiveTab] = useState<'today' | 'list'>('today')
   const [activeSubmenu, setActiveSubmenu] = useState<'create' | 'recap' | 'comments'>('create')
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
 
   // Load jurnal data for selected date
   useEffect(() => {
@@ -55,7 +59,8 @@ export default function DashboardJurnalPage() {
       
       setIsLoading(true)
       try {
-        const response = await fetch(`/api/jurnal?tanggal=${selectedDate}`)
+        // Use new endpoint with date as parameter
+        const response = await fetch(`/api/jurnal/${selectedDate}`)
         const data = await response.json()
         
         if (data.success && data.data) {
@@ -71,6 +76,7 @@ export default function DashboardJurnalPage() {
       } catch (error) {
         console.error('Error loading jurnal:', error)
         setJurnal(null)
+        setFormData({ kegiatan: "", dokumentasi: "" })
       } finally {
         setIsLoading(false)
       }
@@ -90,18 +96,34 @@ export default function DashboardJurnalPage() {
     setIsLoading(true)
     
     try {
-      const method = jurnal ? 'PUT' : 'POST'
-      const response = await fetch('/api/jurnal', {
-        method,
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          tanggal: selectedDate,
-          kegiatan: formData.kegiatan,
-          dokumentasi: formData.dokumentasi
+      let response
+      
+      if (jurnal) {
+        // Update existing jurnal using new endpoint
+        response = await fetch(`/api/jurnal/${selectedDate}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            kegiatan: formData.kegiatan,
+            dokumentasi: formData.dokumentasi
+          })
         })
-      })
+      } else {
+        // Create new jurnal
+        response = await fetch('/api/jurnal', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            tanggal: selectedDate,
+            kegiatan: formData.kegiatan,
+            dokumentasi: formData.dokumentasi
+          })
+        })
+      }
       
       const data = await response.json()
       
@@ -126,6 +148,34 @@ export default function DashboardJurnalPage() {
       kegiatan: jurnal?.kegiatan || "",
       dokumentasi: jurnal?.dokumentasi || ""
     })
+  }
+
+  const handleDelete = async () => {
+    if (!jurnal) return
+    
+    setDeleteLoading(true)
+    
+    try {
+      const response = await fetch(`/api/jurnal/${selectedDate}`, {
+        method: 'DELETE'
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        toast.success('Jurnal berhasil dihapus')
+        setJurnal(null)
+        setFormData({ kegiatan: "", dokumentasi: "" })
+        setShowDeleteConfirm(false)
+      } else {
+        toast.error(data.message || 'Gagal menghapus jurnal')
+      }
+    } catch (error) {
+      console.error('Error deleting jurnal:', error)
+      toast.error('Terjadi kesalahan saat menghapus jurnal')
+    } finally {
+      setDeleteLoading(false)
+    }
   }
 
   if (status === "loading") {
@@ -234,25 +284,34 @@ export default function DashboardJurnalPage() {
                       <FileText className="h-5 w-5 md:h-6 md:w-6 text-blue-600" />
                       {jurnal ? "Jurnal Hari Ini" : "Buat Jurnal Baru"}
                     </CardTitle>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      {jurnal && !isEditing && (
+                    {jurnal && (
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        {!isEditing && (
+                          <Button 
+                            onClick={() => {
+                              setIsEditing(true);
+                              setFormData({
+                                kegiatan: jurnal?.kegiatan || "",
+                                dokumentasi: jurnal?.dokumentasi || ""
+                              });
+                            }}
+                            variant="outline" 
+                            size="sm" 
+                            className="h-10 md:h-9"
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
+                          </Button>
+                        )}
                         <Button 
-                          onClick={() => {
-                            setIsEditing(true);
-                            setFormData({
-                              kegiatan: jurnal?.kegiatan || "",
-                              dokumentasi: jurnal?.dokumentasi || ""
-                            });
-                          }}
+                          onClick={() => setShowDeleteConfirm(true)}
                           variant="outline" 
                           size="sm" 
-                          className="h-10 md:h-9"
+                          className="h-10 md:h-9 text-red-600 hover:text-red-700 hover:bg-red-50"
                         >
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Hapus
                         </Button>
-                      )}
-                      {jurnal && (
                         <Button 
                           onClick={() => {
                             toast.info("Export functionality coming soon")
@@ -264,8 +323,8 @@ export default function DashboardJurnalPage() {
                           <Download className="h-4 w-4 mr-2" />
                           Export
                         </Button>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -410,6 +469,59 @@ export default function DashboardJurnalPage() {
           </motion.div>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-red-100 rounded-full">
+                <AlertTriangle className="h-6 w-6 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Hapus Jurnal
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Tanggal: {new Date(selectedDate).toLocaleDateString('id-ID', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
+                </p>
+              </div>
+            </div>
+            
+            <p className="text-gray-700 mb-6">
+              Apakah Anda yakin ingin menghapus jurnal ini? Tindakan ini tidak dapat dibatalkan.
+            </p>
+            
+            <div className="flex gap-3 justify-end">
+              <Button
+                onClick={() => setShowDeleteConfirm(false)}
+                variant="outline"
+                disabled={deleteLoading}
+              >
+                Batal
+              </Button>
+              <Button
+                onClick={handleDelete}
+                variant="destructive"
+                disabled={deleteLoading}
+                className="flex items-center gap-2"
+              >
+                {deleteLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+                {deleteLoading ? 'Menghapus...' : 'Hapus'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </StudentMinimalLayout>
   )
 }

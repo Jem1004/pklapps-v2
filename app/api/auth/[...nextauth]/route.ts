@@ -1,5 +1,5 @@
-import NextAuth from "../../../../node_modules/next-auth"
-import { authOptions } from "../../../../lib/auth"
+import NextAuth from "next-auth"
+import { authOptions } from "@/lib/auth/auth"
 
 const handler = NextAuth(authOptions)
 

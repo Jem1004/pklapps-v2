@@ -1,5 +1,5 @@
-import { withAuth } from "./node_modules/next-auth/middleware"
-import { NextResponse } from "./node_modules/next/server"
+import { withAuth } from "next-auth/middleware"
+import { NextResponse } from "next/server"
 
 export default withAuth(
   function middleware(req) {
@@ -12,8 +12,17 @@ export default withAuth(
     }
 
     // Jika user belum login dan mengakses halaman protected, redirect ke login
-    if (!token && pathname.startsWith("/dashboard")) {
+    if (!token && (pathname.startsWith("/dashboard") || pathname.startsWith("/absensi"))) {
       return NextResponse.redirect(new URL("/auth/login", req.url))
+    }
+
+    // Handle path /absensi untuk siswa
+    if (token && pathname.startsWith("/absensi")) {
+      if (token.role !== 'STUDENT') {
+        return NextResponse.redirect(new URL(getDashboardUrl(token.role as string), req.url))
+      }
+      // Allow access untuk siswa
+      return NextResponse.next()
     }
 
     // Jika user login tapi mengakses dashboard yang salah, redirect ke dashboard yang benar
@@ -69,10 +78,10 @@ function getAllowedDashboardPaths(role: string): string[] {
   switch (role) {
     case "STUDENT":
       return ["/dashboard/jurnal", "/dashboard/absensi"]
-      case "TEACHER":
-        return ["/dashboard/guru", "/dashboard/guru/absensi"]
-      case "ADMIN":
-        return ["/dashboard/admin", "/dashboard/admin/absensi"]
+    case "TEACHER":
+      return ["/dashboard/guru", "/dashboard/guru/absensi"]
+    case "ADMIN":
+      return ["/dashboard/admin", "/dashboard/admin/absensi"]
     default:
       return []
   }

@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { UserCheck, MapPin, Search, Plus, ChevronLeft, ChevronRight, Eye, Grid, List } from "lucide-react"
+import { AdminStudentMappingForm } from '@/components/forms/AdminStudentMappingForm'
+import type { StudentMappingFormData } from '@/lib/validations/admin'
 
 interface Student {
   id: string
@@ -63,8 +65,6 @@ export default function StudentMapping() {
   const [filterStatus, setFilterStatus] = useState<"all" | "mapped" | "unmapped">("all")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
-  const [selectedLocation, setSelectedLocation] = useState<string>("")
-  const [selectedTeacher, setSelectedTeacher] = useState<string>("")
   const [viewMode, setViewMode] = useState<"table" | "card">("card")
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
@@ -77,7 +77,7 @@ export default function StudentMapping() {
     try {
       setLoading(true)
       const [studentsRes, teachersRes, locationsRes] = await Promise.all([
-        fetch('/api/admin/students'),
+        fetch('/api/admin/students?withMapping=true'),
         fetch('/api/admin/teachers'),
         fetch('/api/admin/tempat-pkl')
       ])
@@ -108,31 +108,50 @@ export default function StudentMapping() {
     }
   }
 
-  const handleMapping = async () => {
-    if (!selectedStudent || !selectedLocation) return
+  const handleMapping = async (data: StudentMappingFormData) => {
+    console.log('handleMapping called with data:', data)
+    console.log('Selected student:', selectedStudent)
+    
+    if (!selectedStudent) {
+      console.log('No student selected, returning')
+      return
+    }
 
     try {
+      const requestData = {
+        studentId: selectedStudent.id,
+        tempatPklId: data.tempatPklId,
+        teacherId: data.teacherId === "none" ? null : data.teacherId,
+      }
+      
+      console.log('Sending request with data:', requestData)
+      
       const response = await fetch('/api/admin/student-mapping', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          studentId: selectedStudent.id,
-          tempatPklId: selectedLocation,
-          teacherId: selectedTeacher === "none" ? null : selectedTeacher || null
-        })
+        body: JSON.stringify(requestData)
       })
 
+      console.log('Response received:', { status: response.status, ok: response.ok })
+
       if (response.ok) {
+        const result = await response.json()
+        console.log('Mapping successful:', result)
+        console.log('Refreshing data...')
         await fetchData()
         setIsDialogOpen(false)
         setSelectedStudent(null)
-        setSelectedLocation("")
-        setSelectedTeacher("")
+        console.log('Dialog closed and student cleared')
+      } else {
+        const errorData = await response.json()
+        console.error('Mapping failed:', errorData)
+        alert(`Error: ${errorData.error || 'Failed to save mapping'}`)
       }
     } catch (error) {
-      console.error('Error mapping student:', error)
+      console.error('Error in handleMapping:', error)
+      alert('Terjadi kesalahan saat menyimpan mapping')
     }
   }
 
@@ -326,8 +345,6 @@ export default function StudentMapping() {
                     <Button
                       onClick={() => {
                         setSelectedStudent(student)
-                        setSelectedLocation(student.tempatPklId || "")
-                        setSelectedTeacher(student.teacherId || "none")
                         setIsDialogOpen(true)
                       }}
                       size="sm"
@@ -395,8 +412,6 @@ export default function StudentMapping() {
                 <Button
                   onClick={() => {
                     setSelectedStudent(student)
-                    setSelectedLocation(student.tempatPklId || "")
-                    setSelectedTeacher(student.teacherId || "none")
                     setIsDialogOpen(true)
                   }}
                   className="w-full"
@@ -441,77 +456,22 @@ export default function StudentMapping() {
 
       {/* Mapping Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>
               {selectedStudent?.tempatPklId ? "Edit Pemetaan Siswa" : "Petakan Siswa"}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            {selectedStudent && (
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <p className="font-medium">{selectedStudent.user.name}</p>
-                <p className="text-sm text-gray-600">NISN: {selectedStudent.nisn}</p>
-                <p className="text-sm text-gray-600">{selectedStudent.kelas} - {selectedStudent.jurusan}</p>
-              </div>
-            )}
-            
-            <div className="space-y-2">
-              <Label htmlFor="location">Tempat PKL *</Label>
-              <Select value={selectedLocation} onValueChange={setSelectedLocation}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih tempat PKL" />
-                </SelectTrigger>
-                <SelectContent>
-                  {tempatPkl.map((location) => (
-                    <SelectItem key={location.id} value={location.id}>
-                      <div>
-                        <div className="font-medium">{location.nama}</div>
-                        <div className="text-sm text-gray-500">{location.alamat}</div>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="teacher">Guru Pembimbing</Label>
-              <Select value={selectedTeacher} onValueChange={setSelectedTeacher}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih guru pembimbing (opsional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Tidak ada guru pembimbing</SelectItem>
-                  {teachers.map((teacher) => (
-                    <SelectItem key={teacher.id} value={teacher.id}>
-                      <div>
-                        <div className="font-medium">{teacher.user.name}</div>
-                        <div className="text-sm text-gray-500">NIP: {teacher.nip}</div>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="flex gap-2 pt-4">
-              <Button
-                onClick={() => setIsDialogOpen(false)}
-                variant="outline"
-                className="flex-1"
-              >
-                Batal
-              </Button>
-              <Button
-                onClick={handleMapping}
-                disabled={!selectedLocation}
-                className="flex-1"
-              >
-                {selectedStudent?.tempatPklId ? "Update" : "Petakan"}
-              </Button>
-            </div>
-          </div>
+          {selectedStudent && (
+            <AdminStudentMappingForm
+              student={selectedStudent}
+              teachers={teachers}
+              tempatPkl={tempatPkl}
+              onSubmit={handleMapping}
+              onCancel={() => setIsDialogOpen(false)}
+              isEdit={!!selectedStudent.tempatPklId}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>

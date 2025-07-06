@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { useSession } from "../node_modules/next-auth/react"
+import { useSession } from "next-auth/react"
 import { useReactToPrint } from 'react-to-print'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { formatDate, formatDateForInput } from "@/lib/utils"
-import { Calendar, FileText, Edit, CheckCircle, ExternalLink, MessageSquare, Download, Filter } from "lucide-react"
+import { Calendar, FileText, Edit, CheckCircle, ExternalLink, MessageSquare, Download, Filter, Trash2 } from "lucide-react"
 import EditJurnalDialog from "./EditJurnalDialog"
 import PrintableJurnal from "./PrintableJurnal"
 
@@ -123,6 +123,24 @@ export default function JurnalList() {
     setEditingJurnal(jurnal)
     setIsEditDialogOpen(true)
   }
+
+    const handleDelete = async (jurnalId: string) => {
+    if (window.confirm(`Yakin ingin menghapus jurnal ini?`)) {
+      try {
+        const response = await fetch(`/api/jurnal/${jurnalId}`, {
+          method: 'DELETE',
+        });
+        const result = await response.json();
+        if (response.ok) {
+          fetchJurnals();
+        } else {
+          console.error('Failed to delete journal:', result.error);
+        }
+      } catch (error) {
+        console.error('Error deleting journal:', error);
+      }
+    }
+  };
 
   const handleEditSuccess = () => {
     fetchJurnals()
@@ -261,33 +279,28 @@ export default function JurnalList() {
             return (
               <Card key={jurnal.id} className="transition-shadow hover:shadow-md">
                 <CardHeader>
-                  <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-5 w-5 text-blue-600" />
-                      <span className="text-base sm:text-lg">{formatTanggal(jurnal.tanggal)}</span>
-                    </div>
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-                      {hasComments ? (
-                        <Badge variant="default" className="bg-green-100 text-green-800 w-fit">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Sudah dikomentari guru
-                        </Badge>
-                      ) : (
-                        <>
-                          <Badge variant="outline" className="w-fit">Menunggu komentar</Badge>
-                          <Button
-                            onClick={() => handleEdit(jurnal)}
-                            variant="outline"
-                            size="sm"
-                            className="w-full sm:w-auto"
-                          >
-                            <Edit className="h-4 w-4 mr-2" />
-                            Edit
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </CardTitle>
+                  <CardTitle className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-5 w-5 text-gray-600" />
+                        <span className="text-lg font-semibold">{formatTanggal(jurnal.tanggal)}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {hasComments ? (
+                          <Badge variant="default" className="bg-green-100 text-green-800">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Dikomentari
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline">Menunggu</Badge>
+                        )}
+                        <Button variant="outline" size="icon" onClick={() => handleEdit(jurnal)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="destructive" size="icon" onClick={() => handleDelete(jurnal.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardTitle>
                 </CardHeader>
                 
                 <CardContent className="space-y-4">

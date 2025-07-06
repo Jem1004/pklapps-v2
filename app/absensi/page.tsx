@@ -1,54 +1,72 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Clock,
   MapPin,
-  CheckCircle,
-  XCircle,
-  Loader2,
   AlertTriangle,
   History,
   Wifi,
   WifiOff,
-  RefreshCw
+  RefreshCw,
+  Calendar,
+  User,
+  Building2
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
-import { submitAbsensi, getRecentAbsensi } from '@/app/absensi/actions'
+import { useAbsensi } from '@/hooks/useAbsensi'
+import { getCurrentPeriod, formatTime, formatDate } from '@/lib/utils/absensi'
 import { toast } from 'sonner'
 import StudentMinimalLayout from '@/components/layout/StudentMinimalLayout'
-
-interface RecentAbsensi {
-  id: string
-  tanggal: Date
-  waktu: Date
-  tipe: 'MASUK' | 'PULANG'
-  tempatPkl: {
-    nama: string
-    alamat: string
-  }
-}
+import { AbsensiForm } from '@/components/forms'
 
 export default function AbsensiPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const [pinAbsensi, setPinAbsensi] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
-  const [recentAbsensi, setRecentAbsensi] = useState<RecentAbsensi[]>([])
   const [isOnline, setIsOnline] = useState(true)
-  const [hasTempatPkl, setHasTempatPkl] = useState(true)
-  const [pinError, setPinError] = useState('')
-  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [error, setError] = useState('')
   const [activeSubmenu, setActiveSubmenu] = useState<'today' | 'history'>('today')
+  
+  // Callback functions dengan useCallback untuk mencegah re-creation
+  const handleSubmitSuccess = useCallback(() => {
+    setError('')
+  }, [])
+
+  const handleSubmitError = useCallback((errorMessage: string) => {
+    setError(errorMessage)
+  }, [])
+
+  const handleLoadError = useCallback((errorMessage: string) => {
+     console.error('Error loading absensi:', errorMessage)
+   }, [])
+
+  // Menggunakan custom hook untuk state management absensi
+  const {
+    isSubmitting,
+    recentAbsensi,
+    isRefreshing,
+    hasTempatPkl,
+    submitAbsensi: submitAbsensiHook,
+    refreshRecentAbsensi,
+    loadRecentAbsensi
+  } = useAbsensi({
+    onSubmitSuccess: handleSubmitSuccess,
+    onSubmitError: handleSubmitError,
+    onLoadError: handleLoadError
+  })
+
+  // Callback untuk form submit success - dideklarasi setelah hook
+  const handleFormSubmitSuccess = useCallback(() => {
+    setError('')
+    loadRecentAbsensi()
+  }, [loadRecentAbsensi])
 
   // Update current time every second
   useEffect(() => {
@@ -72,136 +90,11 @@ export default function AbsensiPage() {
     }
   }, [])
 
-  // Load recent absensi data
-  useEffect(() => {
-    const loadRecentAbsensi = async () => {
-      try {
-        const recentData = await getRecentAbsensi()
-        setRecentAbsensi((recentData.data || []).map(item => ({
-          id: item.id,
-          tanggal: item.tanggal,
-          waktu: item.waktuMasuk || item.waktuPulang || new Date(),
-          tipe: item.tipe,
-          tempatPkl: {
-            nama: item.tempatPkl.nama,
-            alamat: item.tempatPkl.alamat
-          }
-        })))
-      } catch (error) {
-        console.error('Error loading recent absensi:', error)
-      }
-    }
-    
-    if (session?.user) {
-      loadRecentAbsensi()
-    }
-  }, [session])
+  // Tidak perlu useEffect tambahan karena useAbsensi sudah auto-load
 
-  const getCurrentPeriod = () => {
-    const hour = currentTime.getHours()
-    const minute = currentTime.getMinutes()
-    const time = hour + minute / 60
-
-    if (time >= 7 && time <= 10) {
-      return {
-        type: 'MASUK',
-        label: 'Waktu Absen Masuk',
-        color: 'text-green-600',
-        bgColor: 'bg-green-50',
-        borderColor: 'border-green-200',
-        icon: CheckCircle
-      }
-    } else if (time >= 13 && time <= 17) {
-      return {
-        type: 'PULANG',
-        label: 'Waktu Absen Pulang',
-        color: 'text-blue-600',
-        bgColor: 'bg-blue-50',
-        borderColor: 'border-blue-200',
-        icon: CheckCircle
-      }
-    } else {
-      return {
-        type: 'TUTUP',
-        label: 'Di Luar Jam Absensi',
-        color: 'text-red-600',
-        bgColor: 'bg-red-50',
-        borderColor: 'border-red-200',
-        icon: XCircle
-      }
-    }
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!pinAbsensi.trim()) {
-      setPinError('PIN absensi harus diisi')
-      return
-    }
-    
-    if (pinAbsensi.length < 4) {
-      setPinError('PIN absensi minimal 4 karakter')
-      return
-    }
-    
-    setPinError('')
-    setIsLoading(true)
-    
-    try {
-      const result = await submitAbsensi(pinAbsensi)
-      
-      if (result.success) {
-        toast.success(result.message || 'Absensi berhasil dicatat!')
-        setPinAbsensi('')
-        
-        // Refresh recent absensi data
-        const recentData = await getRecentAbsensi()
-        setRecentAbsensi((recentData.data || []).map(item => ({
-          id: item.id,
-          tanggal: item.tanggal,
-          waktu: item.waktuMasuk || item.waktuPulang || new Date(),
-          tipe: item.tipe,
-          tempatPkl: {
-            nama: item.tempatPkl.nama,
-            alamat: item.tempatPkl.alamat
-          }
-        })))
-      } else {
-        toast.error(result.message || 'Gagal mencatat absensi')
-        if (result.message?.includes('PIN')) {
-          setPinError(result.message)
-        }
-      }
-    } catch (error) {
-      console.error('Error submitting absensi:', error)
-      toast.error('Terjadi kesalahan saat mencatat absensi')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleRefresh = async () => {
-    setIsRefreshing(true)
-    try {
-      const recentData = await getRecentAbsensi()
-      setRecentAbsensi((recentData.data || []).map(item => ({
-        id: item.id,
-        tanggal: item.tanggal,
-        waktu: item.waktuMasuk || item.waktuPulang || new Date(),
-        tipe: item.tipe,
-        tempatPkl: {
-          nama: item.tempatPkl.nama,
-          alamat: item.tempatPkl.alamat
-        }
-      })))
-      toast.success('Data berhasil diperbarui')
-    } catch (error) {
-      toast.error('Gagal memperbarui data')
-    } finally {
-      setIsRefreshing(false)
-    }
-  }
+  const handleRefresh = useCallback(async () => {
+    await refreshRecentAbsensi()
+  }, [refreshRecentAbsensi])
 
   if (status === 'loading') {
     return (
@@ -210,7 +103,7 @@ export default function AbsensiPage() {
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
         >
-          <Loader2 className="h-8 w-8 text-blue-600" />
+          <RefreshCw className="h-8 w-8 text-blue-600" />
         </motion.div>
       </div>
     )
@@ -220,7 +113,7 @@ export default function AbsensiPage() {
     return null
   }
 
-  const period = getCurrentPeriod()
+  const period = getCurrentPeriod(currentTime)
   const PeriodIcon = period.icon
 
   return (
@@ -293,28 +186,17 @@ export default function AbsensiPage() {
                           {period.label}
                         </p>
                         <p className="text-xs md:text-sm text-gray-600">
-                          {currentTime.toLocaleTimeString('id-ID', {
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
+                          {formatTime(currentTime)}
                         </p>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className="text-xl md:text-2xl font-mono font-bold text-gray-900">
-                        {currentTime.toLocaleTimeString('id-ID', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          second: '2-digit'
-                        })}
+                        {formatTime(currentTime, { includeSeconds: true })}
                       </p>
                       <p className="text-xs md:text-sm text-gray-500">
-                        {currentTime.toLocaleDateString('id-ID', {
-                          weekday: 'short',
-                          day: 'numeric',
-                          month: 'short'
-                        })}
-                      </p>
+                         {formatDate(currentTime, { includeWeekday: true })}
+                       </p>
                     </div>
                   </div>
                 </CardContent>
@@ -327,76 +209,12 @@ export default function AbsensiPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
             >
-              <Card className="shadow-lg">
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
-                    <Clock className="h-5 w-5 md:h-6 md:w-6 text-blue-600" />
-                    Catat Absensi
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="pin" className="text-sm font-medium">
-                        PIN Absensi
-                      </Label>
-                      <Input
-                        id="pin"
-                        type="password"
-                        placeholder="Masukkan PIN absensi"
-                        value={pinAbsensi}
-                        onChange={(e) => {
-                          setPinAbsensi(e.target.value)
-                          setPinError('')
-                        }}
-                        className={`h-12 md:h-10 text-base md:text-sm ${
-                          pinError ? 'border-red-500 focus:border-red-500' : ''
-                        }`}
-                        disabled={isLoading || !isOnline}
-                      />
-                      {pinError && (
-                        <p className="text-sm text-red-600">{pinError}</p>
-                      )}
-                    </div>
-                    
-                    <Button 
-                      type="submit" 
-                      className="w-full h-12 md:h-10 text-base md:text-sm font-medium"
-                      disabled={isLoading || !isOnline || period.type === 'TUTUP'}
-                    >
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Mencatat Absensi...
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Catat Absensi {period.type === 'MASUK' ? 'Masuk' : period.type === 'PULANG' ? 'Pulang' : ''}
-                        </>
-                      )}
-                    </Button>
-                  </form>
-                  
-                  {period.type === 'TUTUP' && (
-                    <Alert className="mt-4">
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertDescription>
-                        Absensi hanya dapat dilakukan pada jam 07:00-10:00 (masuk) dan 13:00-17:00 (pulang).
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                  
-                  {!isOnline && (
-                    <Alert className="mt-4">
-                      <WifiOff className="h-4 w-4" />
-                      <AlertDescription>
-                        Tidak ada koneksi internet. Pastikan perangkat terhubung ke internet untuk mencatat absensi.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                </CardContent>
-              </Card>
+              <AbsensiForm 
+                 period={period}
+                 isOnline={isOnline}
+                 onSubmitSuccess={handleFormSubmitSuccess}
+                 onSubmitError={handleSubmitError}
+               />
             </motion.div>
           </>
         )}
@@ -438,14 +256,11 @@ export default function AbsensiPage() {
                               {absen.tipe}
                             </Badge>
                             <span className="text-sm font-medium">
-                              {absen.tanggal.toLocaleDateString('id-ID')}
+                              {formatDate(absen.tanggal)}
                             </span>
                           </div>
                           <span className="text-sm text-gray-600">
-                            {absen.waktu.toLocaleTimeString('id-ID', {
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
+                            {formatTime(absen.waktu)}
                           </span>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-600">
