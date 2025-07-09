@@ -523,7 +523,7 @@ export function AbsensiForm({
                     : canAbsenPulang 
                     ? 'Absen Pulang' 
                     : !lastAbsensi?.waktuMasuk 
-                    ? 'Absen Masuk Dulu' 
+                    ? 'Absen Pulang' 
                     : 'Sudah Absen Pulang'
                   }
                 </span>
