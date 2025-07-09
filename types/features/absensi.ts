@@ -1,6 +1,7 @@
 // Types untuk fitur absensi
+import { TipeAbsensi } from '@prisma/client'
 
-export type AbsensiType = 'MASUK' | 'PULANG'
+export type AbsensiType = TipeAbsensi
 
 export interface RecentAbsensi {
   id: string
@@ -57,7 +58,7 @@ export interface UseAbsensiReturn {
   hasTempatPkl: boolean
   
   // Actions
-  submitAbsensi: (pin: string) => Promise<AbsensiSubmitResult>
+  submitAbsensi: (pin: string, tipe: TipeAbsensi) => Promise<AbsensiSubmitResult>
   refreshRecentAbsensi: () => Promise<void>
   loadRecentAbsensi: () => Promise<void>
 }

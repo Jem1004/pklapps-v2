@@ -189,6 +189,7 @@ model Absensi {
   waktuMasuk  DateTime? // Waktu masuk (nullable)
   waktuPulang DateTime? // Waktu pulang (nullable)
   tipe        TipeAbsensi // MASUK atau PULANG
+  version     Int         @default(1) // Optimistic locking version
 
   // Relasi ke Student
   studentId String
@@ -211,6 +212,7 @@ model Absensi {
   @@index([tanggal, studentId])
   @@index([tanggal, tipe])
   @@index([createdAt])
+  @@index([version])
   @@map("absensis")
 }
 
@@ -218,6 +220,7 @@ model Absensi {
 model SettingAbsensi {
   id          String      @id @default(cuid())
   modeAbsensi ModeAbsensi // MASUK_SAJA atau MASUK_PULANG
+  version     Int         @default(1) // Optimistic locking version
 
   // Relasi ke TempatPkl (one-to-one)
   tempatPklId String    @unique
@@ -226,5 +229,6 @@ model SettingAbsensi {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([version])
   @@map("setting_absensis")
 }

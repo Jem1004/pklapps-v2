@@ -71,16 +71,36 @@ function AdminDashboardContent() {
     try {
       setError(null)
       const response = await fetch('/api/admin/dashboard')
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
       const result = await response.json()
       
       if (result.success) {
         setDashboardStats(result.data)
       } else {
-        throw new Error(result.error || 'Failed to load dashboard stats')
+        const errorMessage = typeof result.error === 'string' 
+          ? result.error 
+          : result.error?.message || 'Failed to load dashboard stats'
+        throw new Error(errorMessage)
       }
     } catch (error) {
       console.error('Error loading dashboard stats:', error)
-      setError('Gagal memuat statistik dashboard')
+      
+      // Handle different error types properly
+      let errorMessage = 'Gagal memuat statistik dashboard'
+      
+      if (error instanceof Error) {
+        errorMessage = error.message
+      } else if (typeof error === 'string') {
+        errorMessage = error
+      } else if (error && typeof error === 'object') {
+        errorMessage = JSON.stringify(error)
+      }
+      
+      setError(errorMessage)
       toast.error('Gagal memuat statistik dashboard')
     } finally {
       setIsLoading(false)

@@ -31,7 +31,7 @@ export interface ErrorLoggerConfig {
 class ErrorLoggerService {
   private config: ErrorLoggerConfig;
   private logQueue: LogEntry[] = [];
-  private isOnline: boolean = navigator.onLine;
+  private isOnline: boolean = typeof navigator !== 'undefined' ? navigator.onLine : true;
 
   constructor(config: Partial<ErrorLoggerConfig> = {}) {
     this.config = {

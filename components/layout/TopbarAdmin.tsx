@@ -2,17 +2,8 @@
 
 import { useSession, signOut } from 'next-auth/react'
 import { motion } from 'framer-motion'
-import { Menu, LogOut, User, Settings } from 'lucide-react'
+import { Menu, LogOut, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { Badge } from '@/components/ui/badge'
 
 interface TopbarAdminProps {
   sidebarCollapsed: boolean
@@ -31,6 +22,12 @@ export default function TopbarAdmin({
     await signOut({ callbackUrl: '/auth/login' })
   }
 
+  const getUserDisplayName = () => {
+    if (!session?.user?.name) return 'Admin'
+    const name = session.user.name
+    return name.length > 20 ? name.substring(0, 20) + '...' : name
+  }
+
   return (
     <>
       {/* Desktop Topbar */}
@@ -41,87 +38,82 @@ export default function TopbarAdmin({
           width: sidebarCollapsed ? 'calc(100% - 80px)' : 'calc(100% - 280px)'
         }}
         transition={{ duration: 0.3, ease: 'easeInOut' }}
-        className="fixed top-0 right-0 h-16 bg-white border-b border-slate-200 shadow-sm z-30 hidden lg:flex items-center justify-between px-6"
+        className="fixed top-0 z-30 h-20 bg-white/95 backdrop-blur-sm border-b border-blue-100 shadow-sm lg:block hidden"
       >
-        <div className="flex items-center space-x-4">
+        <div className="flex h-full items-center justify-between px-8">
+          {/* Left Section - Toggle Button */}
           <Button
             variant="ghost"
             size="sm"
             onClick={onToggleSidebar}
-            className="p-2 hover:bg-slate-100"
+            className="p-3 hover:bg-blue-50 rounded-xl transition-colors"
           >
-            <Menu className="w-5 h-5" />
+            <Menu className="w-5 h-5 text-gray-600" />
           </Button>
           
-          <div>
-            <h2 className="font-semibold text-slate-800">Selamat datang kembali!</h2>
-            <p className="text-sm text-slate-500">Kelola sistem PKL dengan mudah</p>
+          {/* Right Section - User Info & Logout */}
+          <div className="flex items-center space-x-4">
+            {/* User Info */}
+            <div className="flex items-center space-x-3 bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-2 rounded-xl">
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center">
+                <User className="w-4 h-4 text-white" />
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-semibold text-gray-900">
+                  {getUserDisplayName()}
+                </p>
+                <p className="text-xs text-blue-600">
+                  Administrator
+                </p>
+              </div>
+            </div>
+            
+            {/* Logout Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              className="p-3 hover:bg-red-50 hover:text-red-600 transition-colors rounded-xl"
+              title="Logout"
+            >
+              <LogOut className="w-5 h-5" />
+            </Button>
           </div>
-        </div>
-
-        <div className="flex items-center space-x-4">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="flex items-center space-x-3 hover:bg-slate-100">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
-                  <User className="w-4 h-4 text-white" />
-                </div>
-                <div className="text-left">
-                  <div className="font-medium text-slate-800">{session?.user?.name}</div>
-                  <Badge variant="secondary" className="text-xs">
-                    {session?.user?.role}
-                  </Badge>
-                </div>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Akun Saya</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Pengaturan</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout} className="text-red-600">
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Keluar</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </motion.header>
 
       {/* Mobile Topbar */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 shadow-sm z-30 flex items-center justify-between px-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onToggleMobileMenu}
-          className="p-2"
-        >
-          <Menu className="w-5 h-5" />
-        </Button>
-
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-            <User className="w-4 h-4 text-white" />
-          </div>
-          <div>
-            <div className="font-medium text-slate-800 text-sm">{session?.user?.name}</div>
-            <Badge variant="secondary" className="text-xs">
-              {session?.user?.role}
-            </Badge>
+      <header className="lg:hidden fixed top-0 left-0 right-0 z-30 h-16 bg-white/95 backdrop-blur-sm border-b border-blue-100 shadow-sm">
+        <div className="flex h-full items-center justify-between px-4">
+          {/* Mobile Menu Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onToggleMobileMenu}
+            className="p-2 hover:bg-blue-50 rounded-lg"
+          >
+            <Menu className="w-5 h-5" />
+          </Button>
+          
+          {/* Mobile User Info & Logout */}
+          <div className="flex items-center space-x-3">
+            <div className="text-right">
+              <p className="text-sm font-semibold text-gray-900">
+                {getUserDisplayName()}
+              </p>
+              <p className="text-xs text-blue-600">Admin</p>
+            </div>
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              className="p-2 hover:bg-red-50 hover:text-red-600 transition-colors rounded-lg"
+            >
+              <LogOut className="w-4 h-4" />
+            </Button>
           </div>
         </div>
-
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleLogout}
-          className="p-2 text-red-600"
-        >
-          <LogOut className="w-4 h-4" />
-        </Button>
       </header>
     </>
   )

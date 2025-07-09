@@ -1,7 +1,7 @@
 import { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
-import { prisma } from "@/lib/prisma"
+import { prisma } from "@/lib/database/config"
 import { Role } from "@prisma/client"
 
 export const authOptions: NextAuthOptions = {
@@ -62,6 +62,7 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: "jwt",
+    maxAge: 24 * 60 * 60, // 24 hours
   },
   callbacks: {
     async jwt({ token, user }) {
@@ -69,13 +70,14 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.role = user.role
         token.username = user.username
+        token.id = user.id
       }
       return token
     },
     async session({ session, token }) {
       // Tambahkan role dan username ke session
-      if (token) {
-        session.user.id = token.sub as string
+      if (token && session.user) {
+        session.user.id = token.id as string
         session.user.role = token.role as Role
         session.user.username = token.username as string
       }
@@ -85,4 +87,5 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: "/auth/login",
   },
+  secret: process.env.NEXTAUTH_SECRET,
 }

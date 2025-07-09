@@ -1,161 +1,162 @@
 'use server'
 
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { getAuthenticatedSession } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
+import { TipeAbsensi } from '@prisma/client'
+import { redirect } from 'next/navigation'
+import { handleApiError } from '@/lib/errors/errorUtils'
+import { withRetryTransaction } from '@/lib/database/transactions'
+import { updateWithOptimisticLock } from '@/lib/database/optimisticLocking'
+import { TransactionError, ConcurrencyError, ConstraintViolationError } from '@/lib/errors/TransactionError'
+import { absensiTransactionConfig } from '@/lib/config/transactions'
+import prisma from '@/lib/prisma'
 
-export async function submitAbsensi(pinAbsensi: string, tipe?: 'MASUK' | 'PULANG') {
+export async function submitAbsensi(formData: FormData) {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session?.user || session.user.role !== 'STUDENT') {
-      return {
-        success: false,
-        message: 'Unauthorized access'
-      }
+    const session = await getAuthenticatedSession()
+
+    const pin = formData.get('pin') as string
+    const tipe = formData.get('tipe') as TipeAbsensi
+
+    if (!pin || !tipe) {
+      throw new Error('PIN dan tipe absensi harus diisi')
     }
 
-    // Cari tempat PKL berdasarkan PIN
-    const tempatPkl = await prisma.tempatPkl.findFirst({
-      where: {
-        pinAbsensi: pinAbsensi,
-        isActive: true
-      }
-    })
+    const result = await withRetryTransaction(async (tx) => {
+       // Cari tempat PKL berdasarkan PIN
+       const tempatPkl = await tx.tempatPkl.findFirst({
+         where: {
+           pinAbsensi: pin,
+           isActive: true
+         }
+       })
 
-    if (!tempatPkl) {
-      return {
-        success: false,
-        message: 'PIN tidak valid atau tempat PKL tidak aktif'
-      }
-    }
+       if (!tempatPkl) {
+         throw new Error('PIN tidak valid atau tempat PKL tidak aktif')
+       }
 
-    // Cek apakah student sudah di-mapping ke tempat PKL ini
-    const student = await prisma.student.findFirst({
-      where: {
-        userId: session.user.id,
-        tempatPklId: tempatPkl.id
-      }
-    })
+       // Cari student berdasarkan user ID
+       const student = await tx.student.findUnique({
+         where: {
+           userId: session.user.id
+         }
+       })
 
-    if (!student) {
-      return {
-        success: false,
-        message: 'Anda tidak terdaftar di tempat PKL ini. Silakan hubungi admin untuk mapping ke tempat PKL yang benar.'
-      }
-    }
+       if (!student) {
+         throw new Error('Data siswa tidak ditemukan')
+       }
 
-    // Cek setting absensi untuk tempat PKL
-    const setting = await prisma.settingAbsensi.findFirst({
-      where: {
-        tempatPklId: tempatPkl.id
-      }
-    })
+       // Validasi apakah siswa terdaftar di tempat PKL ini
+       if (student.tempatPklId !== tempatPkl.id) {
+         throw new Error('Anda tidak terdaftar di tempat PKL ini')
+       }
 
-    if (!setting) {
-      // Buat setting default jika belum ada
-      await prisma.settingAbsensi.create({
-        data: {
-          tempatPklId: tempatPkl.id,
-          modeAbsensi: 'MASUK_PULANG'
-        }
-      })
-    }
+       const today = new Date()
+       today.setHours(0, 0, 0, 0)
 
-    const now = new Date()
-    const currentHour = now.getHours()
-    const currentMinute = now.getMinutes()
-    const currentTime = currentHour + (currentMinute / 60)
+       // Cek setting absensi untuk tempat PKL dengan optimistic locking
+       const settingAbsensi = await tx.settingAbsensi.findUnique({
+         where: {
+           tempatPklId: tempatPkl.id
+         }
+       })
 
-    // Gunakan tipe yang dipilih user, atau tentukan berdasarkan waktu jika tidak ada
-    let tipeAbsensi: 'MASUK' | 'PULANG'
-    
-    if (tipe) {
-      tipeAbsensi = tipe
-    } else {
-      // Fallback: tentukan berdasarkan waktu untuk backward compatibility
-      if (currentTime >= 7 && currentTime <= 10) {
-        tipeAbsensi = 'MASUK'
-      } else if (currentTime >= 13 && currentTime <= 17) {
-        tipeAbsensi = 'PULANG'
-      } else {
-        return {
-          success: false,
-          message: 'Absensi hanya dapat dilakukan pada jam 07:00-10:00 (masuk) atau 13:00-17:00 (pulang)'
-        }
-      }
-    }
+       // Jika mode MASUK_SAJA, hanya boleh absen masuk
+       if (settingAbsensi?.modeAbsensi === 'MASUK_SAJA' && tipe === 'PULANG') {
+         throw new Error('Tempat PKL ini hanya menggunakan absensi masuk')
+       }
 
-    // Cek apakah sudah absen hari ini dengan tipe yang sama
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const tomorrow = new Date(today)
-    tomorrow.setDate(tomorrow.getDate() + 1)
+       // Cek apakah sudah absen hari ini untuk tipe yang sama
+       const existingAbsensi = await tx.absensi.findUnique({
+         where: {
+           studentId_tanggal_tipe: {
+             studentId: student.id,
+             tanggal: today,
+             tipe: tipe
+           }
+         }
+       })
 
-    const existingAbsensi = await prisma.absensi.findFirst({
-      where: {
-        studentId: student.id,
-        tipe: tipeAbsensi,
-        tanggal: {
-          gte: today,
-          lt: tomorrow
-        }
-      }
-    })
+       if (existingAbsensi) {
+         throw new ConstraintViolationError(
+           'submitAbsensi',
+           'DUPLICATE_ATTENDANCE'
+         )
+       }
 
-    if (existingAbsensi) {
-      return {
-        success: false,
-        message: `Anda sudah melakukan absensi ${tipeAbsensi.toLowerCase()} hari ini pada ${existingAbsensi.tanggal.toLocaleTimeString('id-ID')}`
-      }
-    }
+       // Jika absen pulang, pastikan sudah absen masuk
+       if (tipe === 'PULANG') {
+         const absensiMasuk = await tx.absensi.findUnique({
+           where: {
+             studentId_tanggal_tipe: {
+               studentId: student.id,
+               tanggal: today,
+               tipe: 'MASUK'
+             }
+           }
+         })
 
-    // Simpan absensi dengan waktu yang tepat
-    const absensi = await prisma.absensi.create({
-      data: {
-        studentId: student.id,
-        tempatPklId: tempatPkl.id,
-        tanggal: now, // Simpan waktu lengkap
-        tipe: tipeAbsensi,
-        // Set waktu masuk/pulang sesuai tipe
-        ...(tipeAbsensi === 'MASUK' ? { waktuMasuk: now } : { waktuPulang: now })
-      }
-    })
+         if (!absensiMasuk) {
+           throw new Error('Anda harus absen masuk terlebih dahulu')
+         }
+       }
 
-    revalidatePath('/absensi')
+       const now = new Date()
+
+       // Buat record absensi dengan version untuk optimistic locking
+       const newAbsensi = await tx.absensi.create({
+         data: {
+           studentId: student.id,
+           tempatPklId: tempatPkl.id,
+           tanggal: today,
+           tipe: tipe,
+           waktuMasuk: tipe === 'MASUK' ? now : null,
+           waktuPulang: tipe === 'PULANG' ? now : null,
+           version: 1
+         }
+       })
+
+       return {
+         success: true,
+         message: `Absensi ${tipe.toLowerCase()} berhasil dicatat pada ${now.toLocaleTimeString('id-ID')}`,
+         data: newAbsensi
+       }
+     }, 
+     {
+       maxRetries: absensiTransactionConfig.maxRetries,
+       baseDelay: absensiTransactionConfig.baseDelay
+     },
+     {
+       operation: `submitAbsensi_${tipe}`,
+       enableMetrics: absensiTransactionConfig.enableMetrics
+     })
+
     revalidatePath('/dashboard/absensi')
+    return result
 
-    return {
-      success: true,
-      message: `Absensi ${tipeAbsensi.toLowerCase()} berhasil dicatat pada ${now.toLocaleTimeString('id-ID')}`,
-      data: {
-        tipe: tipeAbsensi,
-        tempatPkl: tempatPkl.nama,
-        waktu: absensi.tanggal
-      }
-    }
   } catch (error) {
     console.error('Error submitting absensi:', error)
+    
+    // Handle specific transaction errors
+    if (error instanceof TransactionError) {
+      return {
+        success: false,
+        message: error.message
+      }
+    }
+    
     return {
       success: false,
-      message: 'Terjadi kesalahan saat menyimpan absensi. Silakan coba lagi.'
+      message: error instanceof Error ? error.message : 'Terjadi kesalahan yang tidak terduga'
     }
   }
 }
 
 export async function getRecentAbsensi() {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session?.user || session.user.role !== 'STUDENT') {
-      return {
-        success: false,
-        message: 'Unauthorized access'
-      }
-    }
+    const session = await getAuthenticatedSession()
 
-    const student = await prisma.student.findFirst({
+    const student = await prisma.student.findUnique({
       where: {
         userId: session.user.id
       }
@@ -196,7 +197,7 @@ export async function getRecentAbsensi() {
     console.error('Error getting recent absensi:', error)
     return {
       success: false,
-      message: 'Terjadi kesalahan saat mengambil data absensi'
+      message: error instanceof Error ? error.message : 'Terjadi kesalahan yang tidak terduga'
     }
   }
 }

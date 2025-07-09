@@ -27,9 +27,11 @@ export interface ErrorContext {
   sessionId?: string;
   component?: string;
   action?: string;
+  operation?: string;
   timestamp?: Date;
   userAgent?: string;
   url?: string;
+  metadata?: Record<string, any>;
   additionalData?: Record<string, any>;
 }
 

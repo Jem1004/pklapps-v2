@@ -11,7 +11,7 @@ export async function GET() {
     const session = await getServerSession(authOptions)
     
     if (!session || session.user.role !== "ADMIN") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
     }
 
     const handleGetDashboard = async () => {
@@ -57,6 +57,13 @@ export async function GET() {
     const dashboardData = await handleGetDashboard()
     return NextResponse.json({ success: true, data: dashboardData })
   } catch (error) {
-    return handleApiError(error as Error)
+    console.error('Dashboard API Error:', error)
+    
+    // Return consistent error format for frontend
+    const errorMessage = error instanceof Error ? error.message : 'Failed to load dashboard data'
+    return NextResponse.json(
+      { success: false, error: errorMessage },
+      { status: 500 }
+    )
   }
 }

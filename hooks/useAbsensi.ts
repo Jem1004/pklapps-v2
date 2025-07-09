@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { toast } from 'sonner'
 import { submitAbsensi as submitAbsensiAction, getRecentAbsensi as getRecentAbsensiAction } from '@/app/absensi/actions'
+import { TipeAbsensi } from '@prisma/client'
 import type {
   RecentAbsensi,
   AbsensiSubmitResult,
@@ -88,9 +89,9 @@ export function useAbsensi(options: UseAbsensiOptions = {}): UseAbsensiReturn {
   }, [loadRecentAbsensi])
 
   /**
-   * Submit absensi dengan PIN
+   * Submit absensi dengan PIN dan tipe
    */
-  const submitAbsensi = useCallback(async (pin: string): Promise<AbsensiSubmitResult> => {
+  const submitAbsensi = useCallback(async (pin: string, tipe: TipeAbsensi): Promise<AbsensiSubmitResult> => {
     // Validasi input
     if (!pin.trim()) {
       const error = 'PIN absensi harus diisi'
@@ -109,11 +110,25 @@ export function useAbsensi(options: UseAbsensiOptions = {}): UseAbsensiReturn {
         message: error
       }
     }
+
+    if (!tipe || !['MASUK', 'PULANG'].includes(tipe)) {
+      const error = 'Tipe absensi harus dipilih'
+      onSubmitError?.(error)
+      return {
+        success: false,
+        message: error
+      }
+    }
     
     setIsSubmitting(true)
     
     try {
-      const result = await submitAbsensiAction(pin)
+      // Create FormData for the new API
+      const formData = new FormData()
+      formData.append('pin', pin)
+      formData.append('tipe', tipe)
+      
+      const result = await submitAbsensiAction(formData) as AbsensiSubmitResult
       
       if (result.success) {
         // Refresh data setelah submit berhasil

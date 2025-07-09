@@ -96,11 +96,11 @@ export default function MainLayoutAdmin({ children }: MainLayoutAdminProps) {
         transition={{ duration: 0.3, ease: 'easeInOut' }}
         className="min-h-screen lg:block hidden"
       >
-        <div className="p-6">
+        <div className="p-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.1 }}
+            transition={{ duration: 0.5 }}
           >
             {children}
           </motion.div>
@@ -108,12 +108,12 @@ export default function MainLayoutAdmin({ children }: MainLayoutAdminProps) {
       </motion.main>
 
       {/* Mobile Main Content */}
-      <main className="lg:hidden pt-16">
-        <div className="p-4">
+      <main className="lg:hidden pt-16 min-h-screen">
+        <div className="p-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.1 }}
+            transition={{ duration: 0.5 }}
           >
             {children}
           </motion.div>

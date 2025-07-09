@@ -7,6 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
     "validate-imports": "node scripts/validate-imports.js",
     "check-all": "npm run lint && npm run validate-imports",
     "db:generate": "prisma generate",
@@ -57,6 +60,7 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@types/react-pdf": "^5.0.7",
+    "@vitest/ui": "^1.6.1",
     "autoprefixer": "^10.4.21",
     "eslint": "^8",
     "eslint-config-next": "14.0.4",
@@ -66,6 +70,7 @@
     "tailwindcss": "^3.4.17",
     "ts-node": "^10.9.2",
     "tsx": "^4.19.4",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^1.6.1"
   }
 }

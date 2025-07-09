@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { pinAbsensiSchema, type PinAbsensiInput } from '@/lib/validations/absensi'
 import { submitAbsensi } from '@/app/absensi/actions'
+import { TipeAbsensi } from '@prisma/client'
 
 interface AbsensiFormProps {
   period: {
@@ -41,7 +42,7 @@ export function AbsensiForm({
 }: AbsensiFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showPin, setShowPin] = useState(false)
-  const [selectedTipe, setSelectedTipe] = useState<'MASUK' | 'PULANG' | null>(null)
+  const [selectedTipe, setSelectedTipe] = useState<TipeAbsensi | null>(null)
 
   const {
     register,
@@ -70,7 +71,13 @@ export function AbsensiForm({
 
     try {
       setIsSubmitting(true)
-      const result = await submitAbsensi(data.pin, selectedTipe)
+      
+      // Create FormData for the new transaction-based API
+      const formData = new FormData()
+      formData.append('pin', data.pin)
+      formData.append('tipe', selectedTipe)
+      
+      const result = await submitAbsensi(formData) as { success: boolean; message?: string }
       
       if (result.success) {
         toast.success(result.message || 'Absensi berhasil dicatat')
@@ -92,7 +99,7 @@ export function AbsensiForm({
     }
   }
 
-  const handleTipeSelect = (tipe: 'MASUK' | 'PULANG') => {
+  const handleTipeSelect = (tipe: TipeAbsensi) => {
     setSelectedTipe(tipe)
     setValue('tipe', tipe)
   }
