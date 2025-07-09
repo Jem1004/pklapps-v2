@@ -1,5 +1,6 @@
 // Types untuk fitur absensi
 import { TipeAbsensi } from '@prisma/client'
+import { AttendanceErrorCode } from '@/lib/errors/attendance'
 
 export type AbsensiType = TipeAbsensi
 
@@ -17,6 +18,8 @@ export interface RecentAbsensi {
 export interface AbsensiSubmitResult {
   success: boolean
   message: string
+  code?: AttendanceErrorCode
+  retryable?: boolean
   data?: {
     tipe: AbsensiType
     tempatPkl: string

@@ -9,17 +9,41 @@ import { withRetryTransaction } from '@/lib/database/transactions'
 import { updateWithOptimisticLock } from '@/lib/database/optimisticLocking'
 import { TransactionError, ConcurrencyError, ConstraintViolationError } from '@/lib/errors/TransactionError'
 import { absensiTransactionConfig } from '@/lib/config/transactions'
+import { validateAttendanceTime, getServerTimezone } from '@/lib/utils/timezone'
+import { formatDateForDatabase, syncServerTime } from '@/lib/database/timezone'
+import { createAttendanceError, AttendanceErrorCode, AttendanceErrorLogger, AttendanceError, parseError } from '@/lib/errors/attendance'
+import { revalidateAttendanceData } from '@/lib/cache/revalidation'
 import prisma from '@/lib/prisma'
 
 export async function submitAbsensi(formData: FormData) {
+  const errorLogger = new AttendanceErrorLogger()
+  let session: any
+  
   try {
-    const session = await getAuthenticatedSession()
+    session = await getAuthenticatedSession()
 
     const pin = formData.get('pin') as string
     const tipe = formData.get('tipe') as TipeAbsensi
+    const clientTimezone = formData.get('timezone') as string
+    const clientTimestamp = formData.get('timestamp') as string
 
     if (!pin || !tipe) {
-      throw new Error('PIN dan tipe absensi harus diisi')
+      throw createAttendanceError(
+        AttendanceErrorCode.PIN_INVALID,
+        'PIN dan tipe absensi harus diisi'
+      )
+    }
+
+    // Validate timezone and time consistency
+    const serverTime = await syncServerTime()
+    const clientTime = clientTimestamp ? new Date(clientTimestamp) : new Date()
+    
+    const timeValidation = validateAttendanceTime(clientTime, serverTime)
+    if (!timeValidation.isValid) {
+      throw createAttendanceError(
+        AttendanceErrorCode.TIMEZONE_MISMATCH,
+        timeValidation.message || 'Waktu tidak valid'
+      )
     }
 
     const result = await withRetryTransaction(async (tx) => {
@@ -32,7 +56,10 @@ export async function submitAbsensi(formData: FormData) {
        })
 
        if (!tempatPkl) {
-         throw new Error('PIN tidak valid atau tempat PKL tidak aktif')
+         throw createAttendanceError(
+           AttendanceErrorCode.PIN_INVALID,
+           'PIN tidak valid atau tempat PKL tidak aktif'
+         )
        }
 
        // Cari student berdasarkan user ID
@@ -43,12 +70,18 @@ export async function submitAbsensi(formData: FormData) {
        })
 
        if (!student) {
-         throw new Error('Data siswa tidak ditemukan')
+         throw createAttendanceError(
+           AttendanceErrorCode.UNAUTHORIZED,
+           'Data siswa tidak ditemukan'
+         )
        }
 
        // Validasi apakah siswa terdaftar di tempat PKL ini
        if (student.tempatPklId !== tempatPkl.id) {
-         throw new Error('Anda tidak terdaftar di tempat PKL ini')
+         throw createAttendanceError(
+           AttendanceErrorCode.UNAUTHORIZED,
+           'Anda tidak terdaftar di tempat PKL ini'
+         )
        }
 
        const today = new Date()
@@ -63,7 +96,10 @@ export async function submitAbsensi(formData: FormData) {
 
        // Jika mode MASUK_SAJA, hanya boleh absen masuk
        if (settingAbsensi?.modeAbsensi === 'MASUK_SAJA' && tipe === 'PULANG') {
-         throw new Error('Tempat PKL ini hanya menggunakan absensi masuk')
+         throw createAttendanceError(
+           AttendanceErrorCode.OUTSIDE_HOURS,
+           'Tempat PKL ini hanya menggunakan absensi masuk'
+         )
        }
 
        // Cek apakah sudah absen hari ini untuk tipe yang sama
@@ -78,9 +114,9 @@ export async function submitAbsensi(formData: FormData) {
        })
 
        if (existingAbsensi) {
-         throw new ConstraintViolationError(
-           'submitAbsensi',
-           'DUPLICATE_ATTENDANCE'
+         throw createAttendanceError(
+           AttendanceErrorCode.ALREADY_SUBMITTED,
+           `Anda sudah melakukan absensi ${tipe.toLowerCase()} hari ini`
          )
        }
 
@@ -97,11 +133,16 @@ export async function submitAbsensi(formData: FormData) {
          })
 
          if (!absensiMasuk) {
-           throw new Error('Anda harus absen masuk terlebih dahulu')
+           throw createAttendanceError(
+             AttendanceErrorCode.MUST_CHECK_IN_FIRST,
+             'Anda harus absen masuk terlebih dahulu'
+           )
          }
        }
 
-       const now = new Date()
+       const now = serverTime
+       const formattedDate = formatDateForDatabase(today)
+       const formattedTime = formatDateForDatabase(now)
 
        // Buat record absensi dengan version untuk optimistic locking
        const newAbsensi = await tx.absensi.create({
@@ -114,6 +155,17 @@ export async function submitAbsensi(formData: FormData) {
            waktuPulang: tipe === 'PULANG' ? now : null,
            version: 1
          }
+       })
+
+       // Log successful attendance
+       console.log('Attendance submitted successfully:', {
+         operation: 'submitAbsensi',
+         userId: session.user.id,
+         studentId: student.id,
+         tempatPklId: tempatPkl.id,
+         tipe,
+         timestamp: now,
+         timezone: getServerTimezone()
        })
 
        return {
@@ -131,23 +183,45 @@ export async function submitAbsensi(formData: FormData) {
        enableMetrics: absensiTransactionConfig.enableMetrics
      })
 
-    revalidatePath('/dashboard/absensi')
+    // Use optimized cache revalidation
+    await revalidateAttendanceData(session.user.id, 'soft')
     return result
 
   } catch (error) {
     console.error('Error submitting absensi:', error)
     
+    // Log error with context
+    const attendanceError = parseError(error, {
+      action: 'submitAbsensi',
+      userId: session?.user?.id,
+      pin: formData.get('pin') ? '[REDACTED]' : undefined
+    })
+    AttendanceErrorLogger.log(attendanceError)
+    
+    // Handle specific attendance errors
+    if (error && typeof error === 'object' && 'code' in error) {
+      const attendanceError = error as AttendanceError
+      return {
+        success: false,
+        message: attendanceError.userMessage,
+        code: attendanceError.code,
+        retryable: attendanceError.retryable
+      }
+    }
+    
     // Handle specific transaction errors
     if (error instanceof TransactionError) {
       return {
         success: false,
-        message: error.message
+        message: error.message,
+        retryable: true
       }
     }
     
     return {
       success: false,
-      message: error instanceof Error ? error.message : 'Terjadi kesalahan yang tidak terduga'
+      message: error instanceof Error ? error.message : 'Terjadi kesalahan yang tidak terduga',
+      retryable: false
     }
   }
 }

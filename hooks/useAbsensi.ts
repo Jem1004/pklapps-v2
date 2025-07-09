@@ -5,6 +5,9 @@ import { useSession } from 'next-auth/react'
 import { toast } from 'sonner'
 import { submitAbsensi as submitAbsensiAction, getRecentAbsensi as getRecentAbsensiAction } from '@/app/absensi/actions'
 import { TipeAbsensi } from '@prisma/client'
+import { getClientTimezone, getCurrentServerTime, validateAttendanceTime } from '@/lib/utils/timezone'
+import { withRetry, parseError, AttendanceErrorCode } from '@/lib/errors/attendance'
+import { NetworkUtils } from '@/lib/offline/storage'
 import type {
   RecentAbsensi,
   AbsensiSubmitResult,
@@ -89,7 +92,7 @@ export function useAbsensi(options: UseAbsensiOptions = {}): UseAbsensiReturn {
   }, [loadRecentAbsensi])
 
   /**
-   * Submit absensi dengan PIN dan tipe
+   * Submit absensi dengan PIN dan tipe (Enhanced with timezone and retry)
    */
   const submitAbsensi = useCallback(async (pin: string, tipe: TipeAbsensi): Promise<AbsensiSubmitResult> => {
     // Validasi input
@@ -123,12 +126,47 @@ export function useAbsensi(options: UseAbsensiOptions = {}): UseAbsensiReturn {
     setIsSubmitting(true)
     
     try {
-      // Create FormData for the new API
-      const formData = new FormData()
-      formData.append('pin', pin)
-      formData.append('tipe', tipe)
+      // Check network connectivity
+      const isOnline = await NetworkUtils.checkNetworkStatus()
+      if (!isOnline) {
+        const error = 'Tidak ada koneksi internet. Pastikan perangkat terhubung ke internet.'
+        onSubmitError?.(error)
+        return {
+          success: false,
+          message: error
+        }
+      }
+
+      // Validate timezone and time
+      const clientTimezone = getClientTimezone()
+      const serverTime = getCurrentServerTime()
+      const clientTime = new Date()
       
-      const result = await submitAbsensiAction(formData) as AbsensiSubmitResult
+      const timeValidation = validateAttendanceTime(clientTime, serverTime)
+      if (!timeValidation.isValid) {
+        const error = timeValidation.message || 'Waktu tidak sinkron dengan server'
+        onSubmitError?.(error)
+        return {
+          success: false,
+          message: error
+        }
+      }
+      
+      // Create FormData with timezone information
+      const formData = new FormData()
+      formData.append('pin', pin.toUpperCase())
+      formData.append('tipe', tipe)
+      formData.append('timezone', clientTimezone)
+      formData.append('timestamp', clientTime.toISOString())
+      
+      // Submit with retry mechanism
+      const result = await withRetry(
+        () => submitAbsensiAction(formData),
+        {
+          maxAttempts: 3,
+          baseDelay: 1000
+        }
+      ) as AbsensiSubmitResult
       
       if (result.success) {
         // Refresh data setelah submit berhasil
@@ -139,13 +177,37 @@ export function useAbsensi(options: UseAbsensiOptions = {}): UseAbsensiReturn {
         onSubmitSuccess?.(result)
       } else {
         const errorMessage = result.message || 'Gagal mencatat absensi'
-        toast.error(errorMessage)
+        
+        // Handle specific error codes
+        if ('code' in result) {
+          switch (result.code) {
+            case AttendanceErrorCode.PIN_INVALID:
+              toast.error('PIN tidak valid. Periksa kembali PIN dari pembimbing PKL.')
+              break
+            case AttendanceErrorCode.ALREADY_SUBMITTED:
+              toast.error('Anda sudah melakukan absensi untuk tipe ini hari ini.')
+              break
+            case AttendanceErrorCode.OUTSIDE_HOURS:
+              toast.error('Absensi hanya dapat dilakukan pada jam yang telah ditentukan.')
+              break
+            case AttendanceErrorCode.TIMEZONE_MISMATCH:
+              toast.error('Waktu perangkat tidak sinkron. Periksa pengaturan waktu perangkat.')
+              break
+            default:
+              toast.error(errorMessage)
+          }
+        } else {
+          toast.error(errorMessage)
+        }
+        
         onSubmitError?.(errorMessage)
       }
       
       return result
     } catch (error) {
-      const errorMessage = 'Terjadi kesalahan saat mencatat absensi'
+      const parsedError = parseError(error as Error)
+      const errorMessage = parsedError.message || 'Terjadi kesalahan saat mencatat absensi'
+      
       console.error('Error submitting absensi:', error)
       toast.error(errorMessage)
       onSubmitError?.(errorMessage)
