@@ -1,30 +1,19 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
-import {
-  Clock,
-  MapPin,
-  AlertTriangle,
-  History,
-  Wifi,
-  WifiOff,
-  RefreshCw,
-  Calendar,
-  User,
-  Building2
-} from 'lucide-react'
+import { motion } from 'framer-motion'
+import { Clock, Wifi, WifiOff, History, RefreshCw, MapPin } from 'lucide-react'
+import { toast } from 'sonner'
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
-import { useAbsensi } from '@/hooks/useAbsensi'
-import { getCurrentPeriod, formatTime, formatDate } from '@/lib/utils/absensi'
-import { toast } from 'sonner'
 import StudentMinimalLayout from '@/components/layout/StudentMinimalLayout'
-import { AbsensiForm } from '@/components/forms'
+import AbsensiForm from '@/components/forms/AbsensiForm'
+import { useWaktuAbsensi } from '@/hooks/useWaktuAbsensi'
+import { useAbsensi } from '@/hooks/useAbsensi'
 
 export default function AbsensiPage() {
   const { data: session, status } = useSession()
@@ -44,8 +33,8 @@ export default function AbsensiPage() {
   }, [])
 
   const handleLoadError = useCallback((errorMessage: string) => {
-     console.error('Error loading absensi:', errorMessage)
-   }, [])
+    console.error('Error loading absensi:', errorMessage)
+  }, [])
 
   // Menggunakan custom hook untuk state management absensi
   const {
@@ -57,32 +46,97 @@ export default function AbsensiPage() {
     refreshRecentAbsensi,
     loadRecentAbsensi
   } = useAbsensi({
+    autoLoad: activeSubmenu === 'history',
     onSubmitSuccess: handleSubmitSuccess,
     onSubmitError: handleSubmitError,
     onLoadError: handleLoadError
   })
 
-  // Callback untuk form submit success - dideklarasi setelah hook
-  const handleFormSubmitSuccess = useCallback(() => {
-    setError('')
-    loadRecentAbsensi()
-  }, [loadRecentAbsensi])
+  const {
+    currentPeriod,
+    isOutsideWorkingHours,
+    isLoading: isLoadingWaktu,
+    error: waktuError,
+    refreshWaktuAbsensi
+  } = useWaktuAbsensi()
 
-  // Update current time every second
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date())
-    }, 1000)
-    return () => clearInterval(timer)
+  // Optimized time formatting dengan useMemo
+  const formatTime = useMemo(() => {
+    return (date: Date) => {
+      return date.toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      })
+    }
   }, [])
 
-  // Check online status
+  const formatDate = useMemo(() => {
+    return (date: Date) => {
+      return date.toLocaleDateString('id-ID', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+    }
+  }, [])
+
+  // Network status handlers
+  const handleOnline = () => setIsOnline(true)
+  const handleOffline = () => setIsOnline(false)
+
+  // Callback untuk form submit success
+  const handleFormSubmitSuccess = useCallback(() => {
+    setError('')
+    if (activeSubmenu === 'history') {
+      loadRecentAbsensi()
+    }
+  }, [activeSubmenu, loadRecentAbsensi])
+
+  const handleRefresh = useCallback(() => {
+    refreshRecentAbsensi()
+    refreshWaktuAbsensi()
+  }, [refreshRecentAbsensi, refreshWaktuAbsensi])
+
+  // Optimized submenu handler
+  const handleSubmenuChange = useCallback((submenu: 'today' | 'history') => {
+    setActiveSubmenu(submenu)
+  }, [])
+
+  // Determine period info based on current period string
+  const getPeriodInfo = useMemo(() => {
+    return (periodString: string) => {
+      switch (periodString) {
+        case 'Waktu Masuk':
+          return { type: 'MASUK' as const, label: 'Waktu Masuk', color: 'text-green-600', bgColor: 'bg-green-50', borderColor: 'border-green-200', icon: Clock }
+        case 'Jam Kerja':
+          return { type: 'MASUK' as const, label: 'Jam Kerja', color: 'text-blue-600', bgColor: 'bg-blue-50', borderColor: 'border-blue-200', icon: Clock }
+        case 'Waktu Pulang':
+          return { type: 'PULANG' as const, label: 'Waktu Pulang', color: 'text-orange-600', bgColor: 'bg-orange-50', borderColor: 'border-orange-200', icon: Clock }
+        case 'Selesai':
+          return { type: 'TUTUP' as const, label: 'Selesai', color: 'text-gray-600', bgColor: 'bg-gray-50', borderColor: 'border-gray-200', icon: Clock }
+        default:
+          return { type: 'TUTUP' as const, label: periodString || 'Belum Dimulai', color: 'text-gray-500', bgColor: 'bg-gray-50', borderColor: 'border-gray-200', icon: Clock }
+      }
+    }
+  }, [])
+
+  const period = useMemo(() => {
+    return getPeriodInfo(isLoadingWaktu ? 'Memuat...' : waktuError ? 'Error' : currentPeriod)
+  }, [getPeriodInfo, isLoadingWaktu, waktuError, currentPeriod])
+
+  const PeriodIcon = period.icon
+
+  // Network status effects
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true)
-    const handleOffline = () => setIsOnline(false)
+    const handleOnlineStatus = () => setIsOnline(navigator.onLine)
     
     window.addEventListener('online', handleOnline)
     window.addEventListener('offline', handleOffline)
+    
+    // Initial check
+    handleOnlineStatus()
     
     return () => {
       window.removeEventListener('online', handleOnline)
@@ -90,15 +144,25 @@ export default function AbsensiPage() {
     }
   }, [])
 
-  // Tidak perlu useEffect tambahan karena useAbsensi sudah auto-load
+  // Update current time
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 1000)
 
-  const handleRefresh = useCallback(async () => {
-    await refreshRecentAbsensi()
-  }, [refreshRecentAbsensi])
+    return () => clearInterval(timer)
+  }, [])
+
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/auth/signin')
+    }
+  }, [status, router])
 
   if (status === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="flex items-center justify-center min-h-screen">
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
@@ -113,9 +177,6 @@ export default function AbsensiPage() {
     return null
   }
 
-  const period = getCurrentPeriod(currentTime)
-  const PeriodIcon = period.icon
-
   return (
     <StudentMinimalLayout>
       <div className="container mx-auto px-4 py-6 max-w-2xl">
@@ -123,7 +184,7 @@ export default function AbsensiPage() {
         <div className="mb-6">
           <div className="flex space-x-4 border-b border-gray-200 overflow-x-auto">
             <button 
-              onClick={() => setActiveSubmenu('today')}
+              onClick={() => handleSubmenuChange('today')}
               className={`pb-2 px-1 border-b-2 font-medium whitespace-nowrap ${
                 activeSubmenu === 'today' 
                   ? 'border-blue-600 text-blue-600' 
@@ -133,7 +194,7 @@ export default function AbsensiPage() {
               Absensi Hari Ini
             </button>
             <button 
-              onClick={() => setActiveSubmenu('history')}
+              onClick={() => handleSubmenuChange('history')}
               className={`pb-2 px-1 border-b-2 font-medium whitespace-nowrap ${
                 activeSubmenu === 'history' 
                   ? 'border-blue-600 text-blue-600' 
@@ -192,11 +253,11 @@ export default function AbsensiPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-xl md:text-2xl font-mono font-bold text-gray-900">
-                        {formatTime(currentTime, { includeSeconds: true })}
+                        {formatTime(currentTime)}
                       </p>
                       <p className="text-xs md:text-sm text-gray-500">
-                         {formatDate(currentTime, { includeWeekday: true })}
-                       </p>
+                        {formatDate(currentTime)}
+                      </p>
                     </div>
                   </div>
                 </CardContent>
@@ -243,7 +304,12 @@ export default function AbsensiPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                {recentAbsensi.length > 0 ? (
+                {isRefreshing ? (
+                  <div className="flex items-center justify-center py-8">
+                    <RefreshCw className="h-6 w-6 animate-spin text-blue-600" />
+                    <span className="ml-2 text-gray-600">Memuat riwayat absensi...</span>
+                  </div>
+                ) : recentAbsensi.length > 0 ? (
                   <div className="space-y-3">
                     {recentAbsensi.map((absen) => (
                       <div key={absen.id} className="p-4 border rounded-lg bg-gray-50">

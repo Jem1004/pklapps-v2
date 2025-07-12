@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard,
   ClipboardList,
+  Clock,
   LogOut,
   X,
   Shield,
@@ -39,6 +40,12 @@ const menuItems: MenuItem[] = [
     href: '/dashboard/admin/absensi',
     icon: ClipboardList,
     description: 'Kelola Absensi'
+  },
+  {
+    name: 'Waktu Absensi',
+    href: '/dashboard/admin/waktu-absensi',
+    icon: Clock,
+    description: 'Pengaturan Waktu'
   }
 ]
 

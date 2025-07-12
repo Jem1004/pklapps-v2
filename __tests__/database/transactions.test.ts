@@ -195,8 +195,8 @@ describe('Database Transactions', () => {
         { id: 2, name: 'User 2' }
       ]
       
-      mockPrisma.$transaction.mockImplementation(async (operations: Array<(tx: any) => Promise<any>>) => {
-        return Promise.all(operations.map((op: (tx: any) => Promise<any>) => op(mockPrisma)))
+      mockPrisma.$transaction.mockImplementation(async (operation: (tx: any) => Promise<any>) => {
+        return operation(mockPrisma)
       })
 
       const operations = [

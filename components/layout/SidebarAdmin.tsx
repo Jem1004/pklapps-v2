@@ -7,6 +7,7 @@ import { motion } from 'framer-motion'
 import {
   LayoutDashboard,
   ClipboardList,
+  Clock,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -38,7 +39,7 @@ const menuItems: MenuItem[] = [
     name: 'Absensi',
     href: '/dashboard/admin/absensi',
     icon: ClipboardList,
-    description: 'Kelola Absensi'
+    description: 'Kelola Absensi & Waktu'
   }
 ]
 

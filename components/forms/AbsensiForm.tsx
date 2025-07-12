@@ -20,7 +20,7 @@ import { TipeAbsensi } from '@prisma/client'
 import { usePinStorage } from '@/lib/storage/pin'
 import { useOfflineStorage, NetworkUtils } from '@/lib/offline/storage'
 import { withRetry, parseError, AttendanceErrorLogger, ErrorUtils } from '@/lib/errors/attendance'
-import { getCurrentServerTime, validateAttendanceTime, getClientTimezone } from '@/lib/utils/timezone'
+import { getCurrentServerTime, syncServerTime, getClientTimezone } from '@/lib/utils/timezone'
 
 interface AbsensiFormProps {
   period: {
@@ -100,11 +100,26 @@ export function AbsensiForm({
       setValue('pin', storedPin)
     }
     
-    // Check timezone validity
-    const clientTime = new Date()
-    const serverTime = getCurrentServerTime()
-    const validation = validateAttendanceTime(clientTime, serverTime)
-    setFormState(prev => ({ ...prev, timezoneValid: validation.isValid }))
+    // Check timezone validity with improved async handling
+    const checkTimezone = async () => {
+      try {
+        const clientTime = new Date()
+        const clientTimezone = getClientTimezone()
+        const syncResult = await syncServerTime(clientTime, clientTimezone)
+        
+        // Consider timezone valid if time difference is less than 5 minutes
+        const isValid = Math.abs(syncResult.timeDifference) <= 300000
+        
+        setFormState(prev => ({ ...prev, timezoneValid: isValid }))
+      } catch (error) {
+        console.warn('Failed to validate timezone:', error)
+        // Assume valid if we can't check
+        setFormState(prev => ({ ...prev, timezoneValid: true }))
+      }
+    }
+    
+    // Only check timezone once on mount
+    checkTimezone()
     
     // Get offline queue count
     const stats = offlineStorage.getSyncStats()
@@ -122,7 +137,7 @@ export function AbsensiForm({
     const interval = setInterval(checkConnection, 30000) // Check every 30 seconds
     
     return () => clearInterval(interval)
-  }, [])
+  }, []) // Empty dependency array is correct here
   
   // PIN suggestions based on input
   useEffect(() => {
@@ -249,12 +264,13 @@ export function AbsensiForm({
 
   const getCurrentTime = useCallback(() => {
     try {
-      const serverTime = getCurrentServerTime()
-      return serverTime.toLocaleTimeString('id-ID', {
+      // Use current time with server timezone for display
+      const now = new Date()
+      return now.toLocaleTimeString('id-ID', {
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit',
-        timeZone: getClientTimezone()
+        timeZone: 'Asia/Makassar'
       })
     } catch {
       return new Date().toLocaleTimeString('id-ID', {
@@ -267,13 +283,14 @@ export function AbsensiForm({
 
   const getCurrentDate = useCallback(() => {
     try {
-      const serverTime = getCurrentServerTime()
-      return serverTime.toLocaleDateString('id-ID', {
+      // Use current date with server timezone for display
+      const now = new Date()
+      return now.toLocaleDateString('id-ID', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
         day: 'numeric',
-        timeZone: getClientTimezone()
+        timeZone: 'Asia/Makassar'
       })
     } catch {
       return new Date().toLocaleDateString('id-ID', {
@@ -322,7 +339,7 @@ export function AbsensiForm({
     if (isOnline && formState.offlineQueueCount > 0) {
       handleSyncOfflineData()
     }
-  }, [isOnline, formState.offlineQueueCount, handleSyncOfflineData])
+  }, [isOnline, formState.offlineQueueCount]) // Removed handleSyncOfflineData from deps to prevent infinite loop
 
   const canAbsenMasuk = !lastAbsensi?.waktuMasuk
   const canAbsenPulang = lastAbsensi?.waktuMasuk && !lastAbsensi?.waktuPulang
@@ -478,12 +495,20 @@ export function AbsensiForm({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Absen Masuk */}
               <Button
-                type="submit"
+                type="button"
                 variant={formState.selectedTipe === 'MASUK' ? 'default' : 'outline'}
                 size="lg"
                 className="h-16 flex flex-col gap-2"
-                disabled={!canAbsenMasuk || formState.isSubmitting || (!isOnline && formState.offlineQueueCount >= 10) || period.type === 'TUTUP'}
-                onClick={() => handleTipeSelect('MASUK')}
+                disabled={!canAbsenMasuk || formState.isSubmitting || period.type === 'TUTUP'}
+                onClick={() => {
+                  handleTipeSelect('MASUK')
+                  if (canAbsenMasuk && !formState.isSubmitting && period.type !== 'TUTUP') {
+                    const pin = getValues('pin')
+                    if (pin && pin.length >= 4) {
+                      handleSubmit(handleFormSubmit)()
+                    }
+                  }
+                }}
               >
                 {formState.isSubmitting && formState.selectedTipe === 'MASUK' ? (
                   <RefreshCw className="h-6 w-6 animate-spin" />
@@ -505,12 +530,20 @@ export function AbsensiForm({
 
               {/* Absen Pulang */}
               <Button
-                type="submit"
+                type="button"
                 variant={formState.selectedTipe === 'PULANG' ? 'default' : 'outline'}
                 size="lg"
                 className="h-16 flex flex-col gap-2"
-                disabled={!canAbsenPulang || formState.isSubmitting || (!isOnline && formState.offlineQueueCount >= 10) || period.type === 'TUTUP'}
-                onClick={() => handleTipeSelect('PULANG')}
+                disabled={!canAbsenPulang || formState.isSubmitting || period.type === 'TUTUP'}
+                onClick={() => {
+                  handleTipeSelect('PULANG')
+                  if (canAbsenPulang && !formState.isSubmitting && period.type !== 'TUTUP') {
+                    const pin = getValues('pin')
+                    if (pin && pin.length >= 4) {
+                      handleSubmit(handleFormSubmit)()
+                    }
+                  }
+                }}
               >
                 {formState.isSubmitting && formState.selectedTipe === 'PULANG' ? (
                   <RefreshCw className="h-6 w-6 animate-spin" />

@@ -18,10 +18,17 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get('limit') || '10')
     const minimal = searchParams.get('minimal') === 'true'
     const withMapping = searchParams.get('withMapping') === 'true'
+    const unmapped = searchParams.get('unmapped') === 'true'
 
     let students
 
-    if (minimal) {
+    if (unmapped) {
+      // For bulk mapping - get unmapped students
+      students = await queryPerformance.withTiming(
+        'students-unmapped',
+        () => studentQueries.getUnmappedStudents()
+      )
+    } else if (minimal) {
       // For dropdown lists or minimal data requirements
       students = await queryPerformance.withTiming(
         'students-minimal',

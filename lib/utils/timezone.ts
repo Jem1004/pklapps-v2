@@ -18,7 +18,7 @@ export interface TimezoneValidationResult {
 
 /**
  * Detect client timezone using Intl API
- * @returns Client timezone string (e.g., 'Asia/Jakarta')
+ * @returns Client timezone string (e.g., 'Asia/Makassar')
  */
 export function detectClientTimezone(): string {
   try {
@@ -30,11 +30,11 @@ export function detectClientTimezone(): string {
 }
 
 /**
- * Get server timezone from environment or default to Asia/Jakarta
+ * Get server timezone from environment or default to Asia/Makassar
  * @returns Server timezone string
  */
 export function getServerTimezone(): string {
-  return process.env.TZ || process.env.SERVER_TIMEZONE || 'Asia/Jakarta'
+  return process.env.TZ || process.env.SERVER_TIMEZONE || 'Asia/Makassar'
 }
 
 /**
@@ -188,9 +188,25 @@ export function formatDateForDatabase(date: Date, timezone?: string): string {
  * Get current time in server timezone
  * @returns Date object in server timezone
  */
-export function getCurrentServerTime(): Date {
+export async function getCurrentServerTime(): Promise<Date> {
+  try {
+    // Try to get server time from API endpoint
+    const response = await fetch('/api/server-time')
+    if (response.ok) {
+      const data = await response.json()
+      return new Date(data.timestamp)
+    }
+  } catch (error) {
+    console.warn('Failed to fetch server time from API, using fallback:', error)
+  }
+  
+  // Fallback: use current time with server timezone
   const serverTimezone = getServerTimezone()
-  return new Date(new Date().toLocaleString('en-US', { timeZone: serverTimezone }))
+  const now = new Date()
+  
+  // Create a proper date object in server timezone
+  const serverTimeString = now.toLocaleString('sv-SE', { timeZone: serverTimezone })
+  return new Date(serverTimeString)
 }
 
 /**
@@ -207,13 +223,13 @@ export function getClientTimezone(): string {
  * @param clientTimezone - Client timezone
  * @returns Object with server time and validation info
  */
-export function syncServerTime(clientTime: Date, clientTimezone: string): {
+export async function syncServerTime(clientTime: Date, clientTimezone: string): Promise<{
   serverTime: Date
   isValid: boolean
   timeDifference: number
-} {
+}> {
   try {
-    const serverTime = getCurrentServerTime()
+    const serverTime = await getCurrentServerTime()
     const timeDifference = Math.abs(serverTime.getTime() - clientTime.getTime())
     const isValid = timeDifference <= 300000 // 5 minutes tolerance
     
@@ -238,12 +254,12 @@ export function syncServerTime(clientTime: Date, clientTimezone: string): {
  * @param attendanceHours - Object with start and end hours
  * @returns Boolean indicating if within attendance hours
  */
-export function isWithinAttendanceHours(
+export async function isWithinAttendanceHours(
   config: TimezoneConfig,
   attendanceHours: { start: number; end: number }
-): boolean {
+): Promise<boolean> {
   try {
-    const serverTime = getCurrentServerTime()
+    const serverTime = await getCurrentServerTime()
     const hour = serverTime.getHours() + serverTime.getMinutes() / 60
     
     return hour >= attendanceHours.start && hour <= attendanceHours.end

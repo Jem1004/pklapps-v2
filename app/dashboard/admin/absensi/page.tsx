@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import MainLayoutAdmin from '@/components/layout/MainLayoutAdmin'
+import { ExportPinExcel } from '@/components/admin/ExportPinExcel'
 import {
   Tabs,
   TabsContent,
@@ -65,10 +66,15 @@ import {
   CheckCircle,
   XCircle,
   FileText,
-  Shuffle
+  Shuffle,
+  FileSpreadsheet
 } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { toast } from 'sonner'
+import { WaktuAbsensiList } from '@/components/features/admin/WaktuAbsensiList'
+import WaktuAbsensiForm from '@/components/features/admin/WaktuAbsensiForm'
+import WaktuAbsensiDetail from '@/components/features/admin/WaktuAbsensiDetail'
+import type { WaktuAbsensiSetting } from '@/types/features/waktuAbsensi'
 
 interface TempatPkl {
   id: string
@@ -91,7 +97,7 @@ interface AbsensiData {
     user: {
       name: string
     }
-    tempatPkl?: {
+    tempatPkl: {
       nama: string
       alamat: string
     }
@@ -101,6 +107,8 @@ interface AbsensiData {
     alamat: string
   }
 }
+
+
 
 export default function AdminAbsensiPage() {
   const { data: session, status } = useSession()
@@ -122,6 +130,12 @@ export default function AdminAbsensiPage() {
   const [pinLoading, setPinLoading] = useState(false)
   const [settingsLoading, setSettingsLoading] = useState(false)
 
+  // Waktu Absensi state
+  const [waktuAbsensiViewMode, setWaktuAbsensiViewMode] = useState<'list' | 'add' | 'edit' | 'detail'>('list')
+  const [selectedWaktuAbsensiSetting, setSelectedWaktuAbsensiSetting] = useState<WaktuAbsensiSetting | null>(null)
+  const [globalSetting, setGlobalSetting] = useState<WaktuAbsensiSetting | null>(null)
+  const [waktuAbsensiLoading, setWaktuAbsensiLoading] = useState(false)
+
   // Auth check
   useEffect(() => {
     if (status === 'loading') return
@@ -138,6 +152,7 @@ export default function AdminAbsensiPage() {
 
     loadAbsensiData()
     loadTempatPklList()
+    fetchGlobalSetting()
   }, [session, status, router])
 
   // Filter data when search term, filter status, or date range changes
@@ -325,6 +340,57 @@ export default function AdminAbsensiPage() {
     setNewPin(pin)
   }
 
+  // Waktu Absensi functions
+  const fetchGlobalSetting = async () => {
+    try {
+      setWaktuAbsensiLoading(true)
+      const response = await fetch('/api/admin/waktu-absensi')
+      const result = await response.json()
+      
+      if (response.ok) {
+        // API now returns array directly in result.data
+        const settings = result.data;
+        const setting = Array.isArray(settings) ? settings[0] : settings;
+        setGlobalSetting(setting || null)
+      }
+    } catch (err) {
+      console.error('Failed to fetch global setting:', err)
+    } finally {
+      setWaktuAbsensiLoading(false)
+    }
+  }
+
+  const handleWaktuAbsensiAdd = () => {
+    setSelectedWaktuAbsensiSetting(null)
+    setWaktuAbsensiViewMode('add')
+  }
+
+  const handleWaktuAbsensiEdit = (setting: WaktuAbsensiSetting) => {
+    setSelectedWaktuAbsensiSetting(setting)
+    setWaktuAbsensiViewMode('edit')
+  }
+
+  const handleWaktuAbsensiView = (setting: WaktuAbsensiSetting) => {
+    setSelectedWaktuAbsensiSetting(setting)
+    setWaktuAbsensiViewMode('detail')
+  }
+
+  const handleWaktuAbsensiSuccess = () => {
+    setWaktuAbsensiViewMode('list')
+    setSelectedWaktuAbsensiSetting(null)
+    fetchGlobalSetting()
+  }
+
+  const handleWaktuAbsensiCancel = () => {
+    setWaktuAbsensiViewMode('list')
+    setSelectedWaktuAbsensiSetting(null)
+  }
+
+  const handleWaktuAbsensiBack = () => {
+    setWaktuAbsensiViewMode('list')
+    setSelectedWaktuAbsensiSetting(null)
+  }
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'HADIR':
@@ -397,28 +463,28 @@ export default function AdminAbsensiPage() {
           {[
             {
               title: 'Total Absensi',
-              value: filteredData.length,
+              value: (filteredData || []).length,
               change: '+12.5%',
               icon: ClipboardCopy,
               color: 'from-blue-500 to-blue-600'
             },
             {
               title: 'Hadir',
-              value: filteredData.filter((item: any) => item.status === 'HADIR').length,
+              value: (filteredData || []).filter((item: any) => item.status === 'HADIR').length,
               change: '+8.2%',
               icon: CheckCircle,
               color: 'from-green-500 to-green-600'
             },
             {
               title: 'Terlambat',
-              value: filteredData.filter((item: any) => item.status === 'TERLAMBAT').length,
+              value: (filteredData || []).filter((item: any) => item.status === 'TERLAMBAT').length,
               change: '+2.1%',
               icon: Clock,
               color: 'from-orange-500 to-orange-600'
             },
             {
               title: 'Tidak Hadir',
-              value: filteredData.filter((item: any) => item.status === 'TIDAK_HADIR').length,
+              value: (filteredData || []).filter((item: any) => item.status === 'TIDAK_HADIR').length,
               change: '-5.3%',
               icon: XCircle,
               color: 'from-red-500 to-red-600'
@@ -462,7 +528,7 @@ export default function AdminAbsensiPage() {
           transition={{ duration: 0.5, delay: 0.3 }}
         >
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-2 bg-white border border-slate-200 p-1 rounded-xl">
+            <TabsList className="grid w-full grid-cols-4 bg-white border border-slate-200 p-1 rounded-xl">
               <TabsTrigger
                 value="data"
                 className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white rounded-lg"
@@ -471,11 +537,25 @@ export default function AdminAbsensiPage() {
                 Data Absensi
               </TabsTrigger>
               <TabsTrigger
+                value="waktu-absensi"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white rounded-lg"
+              >
+                <Clock className="w-4 h-4 mr-2" />
+                Waktu Absensi
+              </TabsTrigger>
+              <TabsTrigger
                 value="settings"
                 className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white rounded-lg"
               >
                 <Settings className="w-4 h-4 mr-2" />
                 Pengaturan PIN
+              </TabsTrigger>
+              <TabsTrigger
+                value="export-excel"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white rounded-lg"
+              >
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                Export Excel
               </TabsTrigger>
             </TabsList>
 
@@ -532,7 +612,7 @@ export default function AdminAbsensiPage() {
                         <p className="text-slate-600">Memuat data absensi...</p>
                       </div>
                     </div>
-                  ) : filteredData.length === 0 ? (
+                  ) : (filteredData || []).length === 0 ? (
                     <div className="text-center py-12">
                       <FileText className="w-16 h-16 text-slate-300 mx-auto mb-4" />
                       <h3 className="text-lg font-medium text-slate-600 mb-2">Tidak ada data absensi</h3>
@@ -553,7 +633,7 @@ export default function AdminAbsensiPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {filteredData.map((item) => (
+                          {(filteredData || []).map((item) => (
                             <TableRow key={item.id} className="hover:bg-slate-50">
                               <TableCell className="font-medium">
                                 {formatDate(item.tanggal)}
@@ -613,7 +693,7 @@ export default function AdminAbsensiPage() {
                         <p className="text-slate-600">Memuat data tempat PKL...</p>
                       </div>
                     </div>
-                  ) : tempatPklList.length === 0 ? (
+                  ) : (tempatPklList || []).length === 0 ? (
                     <div className="text-center py-12">
                       <Building className="w-16 h-16 text-slate-300 mx-auto mb-4" />
                       <h3 className="text-lg font-medium text-slate-600 mb-2">Tidak ada tempat PKL</h3>
@@ -621,7 +701,7 @@ export default function AdminAbsensiPage() {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {tempatPklList.map((tempatPkl) => (
+                      {(tempatPklList || []).map((tempatPkl) => (
                         <Card key={tempatPkl.id} className="border border-slate-200">
                           <CardContent className="p-6">
                             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
@@ -697,6 +777,76 @@ export default function AdminAbsensiPage() {
                         </Card>
                       ))}
                     </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="export-excel" className="mt-8">
+              <Card className="border-0 shadow-lg">
+                <CardHeader className="bg-gradient-to-r from-emerald-50 to-emerald-100 border-b border-emerald-200">
+                  <CardTitle className="text-slate-800 flex items-center">
+                    <FileSpreadsheet className="w-5 h-5 mr-2" />
+                    Export PIN Tempat PKL ke Excel
+                  </CardTitle>
+                  <CardDescription className="mt-1">
+                    Export data PIN absensi tempat PKL ke file Excel
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <ExportPinExcel />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="waktu-absensi" className="mt-8">
+              <Card className="border-0 shadow-lg">
+                <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 border-b border-blue-200">
+                  <CardTitle className="text-slate-800 flex items-center">
+                    <Clock className="w-5 h-5 mr-2" />
+                    Pengaturan Waktu Absensi Global
+                  </CardTitle>
+                  <CardDescription className="mt-1">
+                    Kelola pengaturan waktu absensi yang berlaku untuk semua tempat PKL
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-6">
+                  {waktuAbsensiLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                      <span className="ml-3 text-slate-600">Memuat data...</span>
+                    </div>
+                  ) : (
+                    <>
+                      {waktuAbsensiViewMode === 'list' && (
+                        <WaktuAbsensiList
+                          globalSetting={globalSetting}
+                          onAdd={handleWaktuAbsensiAdd}
+                          onEdit={handleWaktuAbsensiEdit}
+                          onView={handleWaktuAbsensiView}
+                        />
+                      )}
+                      {waktuAbsensiViewMode === 'add' && (
+                        <WaktuAbsensiForm
+                          onSuccess={handleWaktuAbsensiSuccess}
+                          onCancel={handleWaktuAbsensiCancel}
+                        />
+                      )}
+                      {waktuAbsensiViewMode === 'edit' && selectedWaktuAbsensiSetting && (
+                         <WaktuAbsensiForm
+                           initialData={selectedWaktuAbsensiSetting}
+                           onSuccess={handleWaktuAbsensiSuccess}
+                           onCancel={handleWaktuAbsensiCancel}
+                         />
+                       )}
+                      {waktuAbsensiViewMode === 'detail' && selectedWaktuAbsensiSetting && (
+                         <WaktuAbsensiDetail
+                           setting={selectedWaktuAbsensiSetting}
+                           onBack={handleWaktuAbsensiBack}
+                           onEdit={() => handleWaktuAbsensiEdit(selectedWaktuAbsensiSetting)}
+                         />
+                       )}
+                    </>
                   )}
                 </CardContent>
               </Card>

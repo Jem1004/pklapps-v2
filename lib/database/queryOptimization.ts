@@ -148,6 +148,33 @@ export const studentQueries = {
         }
       }
     })
+  },
+
+  // Get unmapped students for bulk mapping
+  async getUnmappedStudents() {
+    return prisma.student.findMany({
+      where: {
+        tempatPklId: null
+      },
+      select: {
+        id: true,
+        nisn: true,
+        kelas: true,
+        jurusan: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
+      },
+      orderBy: {
+        user: {
+          name: 'asc'
+        }
+      }
+    })
   }
 }
 

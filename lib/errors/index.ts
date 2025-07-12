@@ -18,6 +18,20 @@ export {
   type RecoveryAction
 } from './AppError';
 
+// Transaction Error Classes
+export {
+  TransactionError,
+  ConcurrencyError,
+  TransactionTimeoutError,
+  DeadlockError,
+  ConstraintViolationError,
+  OptimisticLockError,
+  TransactionConnectionError,
+  createTransactionError,
+  isTransactionError,
+  shouldRetryTransaction
+} from './TransactionError';
+
 // Error Logger
 export {
   errorLogger,

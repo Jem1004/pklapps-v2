@@ -10,13 +10,15 @@ import TempatPklManagement from '@/components/features/admin/TempatPklManagement
 import StudentMapping from '@/components/features/admin/StudentMapping'
 import ActivityMonitoring from '@/components/features/admin/ActivityMonitoring'
 import ImportUsers from '@/components/features/admin/ImportUsers'
+import StatsDashboard from '@/components/features/admin/StatsDashboard'
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Users, Building, UserCheck, Activity, Upload, TrendingUp, Loader2, RefreshCcw } from 'lucide-react'
+import { Users, Building, UserCheck, Activity, Upload, TrendingUp, Loader2, RefreshCcw, BarChart3, FileSpreadsheet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 
-type TabType = 'users' | 'tempat-pkl' | 'mapping' | 'monitoring' | 'import'
+type TabType = 'users' | 'tempat-pkl' | 'mapping' | 'monitoring' | 'import' | 'statistics'
 
 interface DashboardStats {
   totalUsers: { value: number; change: string; label: string }
@@ -59,7 +61,7 @@ function AdminDashboardContent() {
 
     // Get tab from URL params
     const tab = searchParams.get('tab') as TabType
-    if (tab && ['users', 'tempat-pkl', 'mapping', 'monitoring', 'import'].includes(tab)) {
+    if (tab && ['users', 'tempat-pkl', 'mapping', 'monitoring', 'import', 'statistics'].includes(tab)) {
       setActiveTab(tab)
     }
 
@@ -174,7 +176,7 @@ function AdminDashboardContent() {
         
         {/* Tabs for different admin functions */}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">Users</span>
@@ -190,6 +192,10 @@ function AdminDashboardContent() {
             <TabsTrigger value="monitoring" className="flex items-center gap-2">
               <Activity className="h-4 w-4" />
               <span className="hidden sm:inline">Monitoring</span>
+            </TabsTrigger>
+            <TabsTrigger value="statistics" className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              <span className="hidden sm:inline">Statistik</span>
             </TabsTrigger>
             <TabsTrigger value="import" className="flex items-center gap-2">
               <Upload className="h-4 w-4" />
@@ -208,6 +214,9 @@ function AdminDashboardContent() {
           </TabsContent>
           <TabsContent value="monitoring">
             <ActivityMonitoring />
+          </TabsContent>
+          <TabsContent value="statistics">
+            <StatsDashboard />
           </TabsContent>
           <TabsContent value="import">
             <ImportUsers />

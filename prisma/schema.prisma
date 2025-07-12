@@ -129,8 +129,8 @@ model TempatPkl {
   students Student[]
 
   // Tambahkan relasi balik yang hilang
-  absensis       Absensi[] // Relasi balik untuk model Absensi
-  settingAbsensi SettingAbsensi? // Relasi balik untuk model SettingAbsensi (one-to-one)
+  absensis            Absensi[] // Relasi balik untuk model Absensi
+  settingAbsensi      SettingAbsensi? // Relasi balik untuk model SettingAbsensi (one-to-one)
 
   @@map("tempat_pkl")
 }
@@ -231,4 +231,22 @@ model SettingAbsensi {
 
   @@index([version])
   @@map("setting_absensis")
+}
+
+// Model WaktuAbsensiSetting - pengaturan waktu absensi global
+model WaktuAbsensiSetting {
+  id                String    @id @default(cuid())
+  jamMasukMulai     String    // Format: "HH:mm"
+  jamMasukSelesai   String    // Format: "HH:mm"
+  jamPulangMulai    String    // Format: "HH:mm"
+  jamPulangSelesai  String    // Format: "HH:mm"
+  isActive          Boolean   @default(true)
+  version           Int       @default(1) // Optimistic locking
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  @@index([isActive])
+  @@index([version])
+  @@map("waktu_absensi_settings")
 }

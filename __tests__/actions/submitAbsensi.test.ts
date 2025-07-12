@@ -372,8 +372,8 @@ describe('submitAbsensi Action', () => {
 
       vi.mocked(withRetryTransaction).mockRejectedValue(
         new ConstraintViolationError(
-          'Anda sudah melakukan absensi masuk hari ini',
-          'DUPLICATE_ATTENDANCE'
+          'submitAbsensi',
+          'Anda sudah melakukan absensi masuk hari ini'
         )
       )
 
@@ -426,7 +426,7 @@ describe('submitAbsensi Action', () => {
   describe('Error Handling', () => {
     it('should handle transaction errors gracefully', async () => {
       vi.mocked(withRetryTransaction).mockRejectedValue(
-        new TransactionError('Database connection failed')
+        new TransactionError('Database connection failed', 'submitAbsensi')
       )
 
       const formData = new FormData()
@@ -442,8 +442,8 @@ describe('submitAbsensi Action', () => {
     it('should handle constraint violation errors', async () => {
       vi.mocked(withRetryTransaction).mockRejectedValue(
         new ConstraintViolationError(
-          'Duplicate attendance record',
-          'DUPLICATE_ATTENDANCE'
+          'submitAbsensi',
+          'Duplicate attendance record'
         )
       )
 

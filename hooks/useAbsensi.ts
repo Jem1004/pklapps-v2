@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react'
 import { toast } from 'sonner'
 import { submitAbsensi as submitAbsensiAction, getRecentAbsensi as getRecentAbsensiAction } from '@/app/absensi/actions'
 import { TipeAbsensi } from '@prisma/client'
-import { getClientTimezone, getCurrentServerTime, validateAttendanceTime } from '@/lib/utils/timezone'
+import { getClientTimezone, getCurrentServerTime, syncServerTime } from '@/lib/utils/timezone'
 import { withRetry, parseError, AttendanceErrorCode } from '@/lib/errors/attendance'
 import { NetworkUtils } from '@/lib/offline/storage'
 import type {
@@ -139,17 +139,20 @@ export function useAbsensi(options: UseAbsensiOptions = {}): UseAbsensiReturn {
 
       // Validate timezone and time
       const clientTimezone = getClientTimezone()
-      const serverTime = getCurrentServerTime()
       const clientTime = new Date()
       
-      const timeValidation = validateAttendanceTime(clientTime, serverTime)
-      if (!timeValidation.isValid) {
-        const error = timeValidation.message || 'Waktu tidak sinkron dengan server'
-        onSubmitError?.(error)
-        return {
-          success: false,
-          message: error
+      try {
+        const syncResult = await syncServerTime(clientTime, clientTimezone)
+        if (Math.abs(syncResult.timeDifference) > 300000) { // 5 minutes
+          const error = 'Waktu perangkat tidak sinkron dengan server. Periksa pengaturan waktu perangkat.'
+          onSubmitError?.(error)
+          return {
+            success: false,
+            message: error
+          }
         }
+      } catch (error) {
+        console.warn('Timezone validation failed, proceeding with submission:', error)
       }
       
       // Create FormData with timezone information
@@ -226,7 +229,7 @@ export function useAbsensi(options: UseAbsensiOptions = {}): UseAbsensiReturn {
     if (autoLoad && session?.user?.role === 'STUDENT') {
       loadRecentAbsensi()
     }
-  }, [autoLoad, session?.user?.role]) // Hapus loadRecentAbsensi dari dependency untuk mencegah infinite loop
+  }, [autoLoad, session?.user?.role]) // loadRecentAbsensi removed from deps to prevent infinite loop
 
   return {
     // State

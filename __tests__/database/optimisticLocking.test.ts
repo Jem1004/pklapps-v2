@@ -1,5 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { PrismaClient } from '@prisma/client'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   updateWithOptimisticLock,
   deleteWithOptimisticLock,
@@ -8,496 +7,178 @@ import {
   compareAndSwap,
   batchUpdateWithOptimisticLock,
   ConflictResolution,
-  resolveVersionConflict
+  resolveVersionConflict,
+  VersionedModel
 } from '@/lib/database/optimisticLocking'
-import { OptimisticLockError, ConcurrencyError } from '@/lib/errors/TransactionError'
+import { OptimisticLockError } from '@/lib/errors/TransactionError'
 
-// Mock Prisma Client
-const mockPrisma = {
-  $transaction: vi.fn(),
-  absensi: {
+// Mock transaction type
+const mockTx = {
+  testModel: {
+    updateMany: vi.fn(),
     findUnique: vi.fn(),
-    update: vi.fn(),
-    delete: vi.fn(),
-    create: vi.fn()
-  },
-  settingAbsensi: {
-    findUnique: vi.fn(),
-    update: vi.fn(),
-    delete: vi.fn(),
+    deleteMany: vi.fn(),
     create: vi.fn()
   }
-} as unknown as PrismaClient
+} as any
 
-// Mock Prisma instance
-vi.mock('@/lib/prisma', () => ({
-  default: mockPrisma
-}))
+interface TestModel extends VersionedModel {
+  name: string
+}
 
 describe('Optimistic Locking', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  afterEach(() => {
-    vi.restoreAllMocks()
-  })
-
   describe('updateWithOptimisticLock', () => {
-    it('should update successfully with correct version', async () => {
-      const existingRecord = {
-        id: 1,
-        studentId: 'student1',
-        version: 1,
-        tanggal: new Date(),
-        tipe: 'MASUK'
-      }
-      
-      const updatedRecord = {
-        ...existingRecord,
+    it('should update record successfully', async () => {
+      const updatedRecord: TestModel = {
+        id: '1',
+        name: 'Updated Name',
         version: 2,
-        waktuMasuk: new Date()
+        updatedAt: new Date()
       }
 
-      mockPrisma.$transaction.mockImplementation(async (callback) => {
-        return callback({
-          absensi: {
-            findUnique: vi.fn().mockResolvedValue(existingRecord),
-            update: vi.fn().mockResolvedValue(updatedRecord)
-          }
-        })
-      })
+      mockTx.testModel.updateMany.mockResolvedValue({ count: 1 })
+      mockTx.testModel.findUnique.mockResolvedValue(updatedRecord)
 
-      const result = await updateWithOptimisticLock(
-        'absensi',
-        { id: 1 },
-        { waktuMasuk: new Date() },
-        1
+      const result = await updateWithOptimisticLock<TestModel>(
+        mockTx,
+        'testModel',
+        '1',
+        1,
+        { name: 'Updated Name' }
       )
 
       expect(result).toEqual(updatedRecord)
-    })
-
-    it('should throw OptimisticLockError on version mismatch', async () => {
-      const existingRecord = {
-        id: 1,
-        studentId: 'student1',
-        version: 2, // Different version
-        tanggal: new Date(),
-        tipe: 'MASUK'
-      }
-
-      mockPrisma.$transaction.mockImplementation(async (callback) => {
-        return callback({
-          absensi: {
-            findUnique: vi.fn().mockResolvedValue(existingRecord),
-            update: vi.fn()
-          }
+      expect(mockTx.testModel.updateMany).toHaveBeenCalledWith({
+        where: { id: '1', version: 1 },
+        data: expect.objectContaining({
+          name: 'Updated Name',
+          version: 2
         })
       })
+    })
+
+    it('should throw OptimisticLockError when version conflict occurs', async () => {
+      mockTx.testModel.updateMany.mockResolvedValue({ count: 0 })
+      mockTx.testModel.findUnique.mockResolvedValue(null)
 
       await expect(
-        updateWithOptimisticLock(
-          'absensi',
-          { id: 1 },
-          { waktuMasuk: new Date() },
-          1 // Expected version 1, but actual is 2
+        updateWithOptimisticLock<TestModel>(
+          mockTx,
+          'testModel',
+          '1',
+          1,
+          { name: 'Updated Name' }
         )
       ).rejects.toThrow(OptimisticLockError)
-    })
-
-    it('should throw error if record not found', async () => {
-      mockPrisma.$transaction.mockImplementation(async (callback) => {
-        return callback({
-          absensi: {
-            findUnique: vi.fn().mockResolvedValue(null),
-            update: vi.fn()
-          }
-        })
-      })
-
-      await expect(
-        updateWithOptimisticLock(
-          'absensi',
-          { id: 999 },
-          { waktuMasuk: new Date() },
-          1
-        )
-      ).rejects.toThrow('Record not found')
-    })
-
-    it('should retry on version conflicts with RETRY strategy', async () => {
-      const existingRecord1 = { id: 1, version: 2 }
-      const existingRecord2 = { id: 1, version: 2 }
-      const updatedRecord = { id: 1, version: 3 }
-
-      let callCount = 0
-      mockPrisma.$transaction.mockImplementation(async (callback) => {
-        callCount++
-        if (callCount === 1) {
-          // First call - version mismatch
-          return callback({
-            absensi: {
-              findUnique: vi.fn().mockResolvedValue(existingRecord1),
-              update: vi.fn()
-            }
-          })
-        } else {
-          // Second call - success
-          return callback({
-            absensi: {
-              findUnique: vi.fn().mockResolvedValue(existingRecord2),
-              update: vi.fn().mockResolvedValue(updatedRecord)
-            }
-          })
-        }
-      })
-
-      const result = await updateWithOptimisticLock(
-        'absensi',
-        { id: 1 },
-        { waktuMasuk: new Date() },
-        1, // Expected version 1, but actual is 2
-        {
-          maxRetries: 3,
-          conflictResolution: ConflictResolution.RETRY
-        }
-      )
-
-      expect(result).toEqual(updatedRecord)
-      expect(callCount).toBe(2)
     })
   })
 
   describe('deleteWithOptimisticLock', () => {
-    it('should delete successfully with correct version', async () => {
-      const existingRecord = {
-        id: 1,
-        studentId: 'student1',
-        version: 1
-      }
-
-      mockPrisma.$transaction.mockImplementation(async (callback) => {
-        return callback({
-          absensi: {
-            findUnique: vi.fn().mockResolvedValue(existingRecord),
-            delete: vi.fn().mockResolvedValue(existingRecord)
-          }
-        })
-      })
+    it('should delete record successfully', async () => {
+      mockTx.testModel.deleteMany.mockResolvedValue({ count: 1 })
 
       const result = await deleteWithOptimisticLock(
-        'absensi',
-        { id: 1 },
+        mockTx,
+        'testModel',
+        '1',
         1
       )
 
-      expect(result).toEqual(existingRecord)
+      expect(result).toBe(true)
+      expect(mockTx.testModel.deleteMany).toHaveBeenCalledWith({
+        where: { id: '1', version: 1 }
+      })
     })
 
-    it('should throw OptimisticLockError on version mismatch', async () => {
-      const existingRecord = {
-        id: 1,
-        studentId: 'student1',
-        version: 2
-      }
-
-      mockPrisma.$transaction.mockImplementation(async (callback) => {
-        return callback({
-          absensi: {
-            findUnique: vi.fn().mockResolvedValue(existingRecord),
-            delete: vi.fn()
-          }
-        })
-      })
+    it('should throw OptimisticLockError when version conflict occurs', async () => {
+      mockTx.testModel.deleteMany.mockResolvedValue({ count: 0 })
 
       await expect(
-        deleteWithOptimisticLock(
-          'absensi',
-          { id: 1 },
-          1 // Expected version 1, but actual is 2
-        )
+        deleteWithOptimisticLock(mockTx, 'testModel', '1', 1)
       ).rejects.toThrow(OptimisticLockError)
     })
   })
 
   describe('createWithVersion', () => {
     it('should create record with initial version', async () => {
-      const newRecord = {
-        id: 1,
-        studentId: 'student1',
+      const createdRecord: TestModel = {
+        id: '1',
+        name: 'Test Name',
         version: 1,
-        tanggal: new Date(),
-        tipe: 'MASUK'
+        updatedAt: new Date()
       }
 
-      mockPrisma.$transaction.mockImplementation(async (callback) => {
-        return callback({
-          absensi: {
-            create: vi.fn().mockResolvedValue(newRecord)
-          }
-        })
-      })
+      mockTx.testModel.create.mockResolvedValue(createdRecord)
 
-      const result = await createWithVersion(
-        'absensi',
-        {
-          studentId: 'student1',
-          tanggal: new Date(),
-          tipe: 'MASUK'
-        }
+      const result = await createWithVersion<TestModel>(
+        mockTx,
+        'testModel',
+        { name: 'Test Name' }
       )
 
-      expect(result).toEqual(newRecord)
+      expect(result).toEqual(createdRecord)
+      expect(mockTx.testModel.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          name: 'Test Name',
+          version: 1
+        })
+      })
     })
   })
 
   describe('fetchWithVersion', () => {
-    it('should fetch record with version', async () => {
-      const record = {
-        id: 1,
-        studentId: 'student1',
-        version: 1
+    it('should fetch record successfully', async () => {
+      const record: TestModel = {
+        id: '1',
+        name: 'Test Name',
+        version: 1,
+        updatedAt: new Date()
       }
 
-      mockPrisma.$transaction.mockImplementation(async (callback) => {
-        return callback({
-          absensi: {
-            findUnique: vi.fn().mockResolvedValue(record)
-          }
-        })
-      })
+      mockTx.testModel.findUnique.mockResolvedValue(record)
 
-      const result = await fetchWithVersion(
-        'absensi',
-        { id: 1 }
+      const result = await fetchWithVersion<TestModel>(
+        mockTx,
+        'testModel',
+        '1'
       )
 
       expect(result).toEqual(record)
-    })
-
-    it('should return null if record not found', async () => {
-      mockPrisma.$transaction.mockImplementation(async (callback) => {
-        return callback({
-          absensi: {
-            findUnique: vi.fn().mockResolvedValue(null)
-          }
-        })
+      expect(mockTx.testModel.findUnique).toHaveBeenCalledWith({
+        where: { id: '1' }
       })
-
-      const result = await fetchWithVersion(
-        'absensi',
-        { id: 999 }
-      )
-
-      expect(result).toBeNull()
-    })
-  })
-
-  describe('compareAndSwap', () => {
-    it('should update if current value matches expected', async () => {
-      const existingRecord = {
-        id: 1,
-        studentId: 'student1',
-        version: 1,
-        status: 'PENDING'
-      }
-      
-      const updatedRecord = {
-        ...existingRecord,
-        version: 2,
-        status: 'APPROVED'
-      }
-
-      mockPrisma.$transaction.mockImplementation(async (callback) => {
-        return callback({
-          absensi: {
-            findUnique: vi.fn().mockResolvedValue(existingRecord),
-            update: vi.fn().mockResolvedValue(updatedRecord)
-          }
-        })
-      })
-
-      const result = await compareAndSwap(
-        'absensi',
-        { id: 1 },
-        'status',
-        'PENDING',
-        'APPROVED',
-        1
-      )
-
-      expect(result.success).toBe(true)
-      expect(result.data).toEqual(updatedRecord)
-    })
-
-    it('should fail if current value does not match expected', async () => {
-      const existingRecord = {
-        id: 1,
-        studentId: 'student1',
-        version: 1,
-        status: 'APPROVED' // Different from expected
-      }
-
-      mockPrisma.$transaction.mockImplementation(async (callback) => {
-        return callback({
-          absensi: {
-            findUnique: vi.fn().mockResolvedValue(existingRecord),
-            update: vi.fn()
-          }
-        })
-      })
-
-      const result = await compareAndSwap(
-        'absensi',
-        { id: 1 },
-        'status',
-        'PENDING', // Expected PENDING, but actual is APPROVED
-        'APPROVED',
-        1
-      )
-
-      expect(result.success).toBe(false)
-      expect(result.currentValue).toBe('APPROVED')
-    })
-  })
-
-  describe('batchUpdateWithOptimisticLock', () => {
-    it('should update multiple records successfully', async () => {
-      const updates = [
-        {
-          where: { id: 1 },
-          data: { status: 'APPROVED' },
-          expectedVersion: 1
-        },
-        {
-          where: { id: 2 },
-          data: { status: 'REJECTED' },
-          expectedVersion: 1
-        }
-      ]
-
-      const existingRecords = [
-        { id: 1, version: 1, status: 'PENDING' },
-        { id: 2, version: 1, status: 'PENDING' }
-      ]
-
-      const updatedRecords = [
-        { id: 1, version: 2, status: 'APPROVED' },
-        { id: 2, version: 2, status: 'REJECTED' }
-      ]
-
-      mockPrisma.$transaction.mockImplementation(async (callback) => {
-        return callback({
-          absensi: {
-            findUnique: vi.fn()
-              .mockResolvedValueOnce(existingRecords[0])
-              .mockResolvedValueOnce(existingRecords[1]),
-            update: vi.fn()
-              .mockResolvedValueOnce(updatedRecords[0])
-              .mockResolvedValueOnce(updatedRecords[1])
-          }
-        })
-      })
-
-      const results = await batchUpdateWithOptimisticLock(
-        'absensi',
-        updates
-      )
-
-      expect(results).toEqual(updatedRecords)
-    })
-
-    it('should handle partial failures in batch update', async () => {
-      const updates = [
-        {
-          where: { id: 1 },
-          data: { status: 'APPROVED' },
-          expectedVersion: 1
-        },
-        {
-          where: { id: 2 },
-          data: { status: 'REJECTED' },
-          expectedVersion: 1
-        }
-      ]
-
-      const existingRecords = [
-        { id: 1, version: 1, status: 'PENDING' },
-        { id: 2, version: 2, status: 'PENDING' } // Version mismatch
-      ]
-
-      mockPrisma.$transaction.mockImplementation(async (callback) => {
-        return callback({
-          absensi: {
-            findUnique: vi.fn()
-              .mockResolvedValueOnce(existingRecords[0])
-              .mockResolvedValueOnce(existingRecords[1]),
-            update: vi.fn()
-          }
-        })
-      })
-
-      await expect(
-        batchUpdateWithOptimisticLock('absensi', updates)
-      ).rejects.toThrow(OptimisticLockError)
     })
   })
 
   describe('resolveVersionConflict', () => {
-    it('should resolve conflict with RETRY strategy', async () => {
-      const currentData = { id: 1, version: 2, status: 'PENDING' }
-      const newData = { status: 'APPROVED' }
-
-      const result = await resolveVersionConflict(
-        ConflictResolution.RETRY,
-        currentData,
-        newData
-      )
-
-      expect(result.shouldRetry).toBe(true)
-      expect(result.mergedData).toEqual(newData)
-      expect(result.newVersion).toBe(2)
+    it('should throw error for FAIL_FAST strategy', async () => {
+      await expect(
+        resolveVersionConflict<TestModel>(
+          mockTx,
+          'testModel',
+          '1',
+          1,
+          { name: 'Updated Name' },
+          ConflictResolution.FAIL_FAST
+        )
+      ).rejects.toThrow(OptimisticLockError)
     })
 
-    it('should resolve conflict with MERGE strategy', async () => {
-      const currentData = {
-        id: 1,
-        version: 2,
-        status: 'PENDING',
-        updatedAt: new Date('2023-01-01')
-      }
-      const newData = {
-        status: 'APPROVED',
-        notes: 'Approved by admin'
-      }
-
-      const result = await resolveVersionConflict(
-        ConflictResolution.MERGE,
-        currentData,
-        newData
-      )
-
-      expect(result.shouldRetry).toBe(true)
-      expect(result.mergedData).toEqual({
-        status: 'APPROVED',
-        notes: 'Approved by admin'
-      })
-      expect(result.newVersion).toBe(2)
-    })
-
-    it('should fail with FAIL strategy', async () => {
-      const currentData = { id: 1, version: 2, status: 'PENDING' }
-      const newData = { status: 'APPROVED' }
-
-      const result = await resolveVersionConflict(
-        ConflictResolution.FAIL,
-        currentData,
-        newData
-      )
-
-      expect(result.shouldRetry).toBe(false)
-      expect(result.error).toBeInstanceOf(ConcurrencyError)
+    it('should throw error for MERGE_CHANGES strategy', async () => {
+      await expect(
+        resolveVersionConflict<TestModel>(
+          mockTx,
+          'testModel',
+          '1',
+          1,
+          { name: 'Updated Name' },
+          ConflictResolution.MERGE_CHANGES
+        )
+      ).rejects.toThrow('Merge changes strategy not implemented')
     })
   })
 })

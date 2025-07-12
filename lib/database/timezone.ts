@@ -29,7 +29,7 @@ export async function syncServerTime(): Promise<Date> {
  * @returns Server timezone string
  */
 export function getServerTimezone(): string {
-  return process.env.TZ || process.env.SERVER_TIMEZONE || 'Asia/Jakarta'
+  return process.env.TZ || process.env.SERVER_TIMEZONE || 'Asia/Makassar'
 }
 
 /**

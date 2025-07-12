@@ -9,10 +9,12 @@ import { withRetryTransaction } from '@/lib/database/transactions'
 import { updateWithOptimisticLock } from '@/lib/database/optimisticLocking'
 import { TransactionError, ConcurrencyError, ConstraintViolationError } from '@/lib/errors/TransactionError'
 import { absensiTransactionConfig } from '@/lib/config/transactions'
-import { validateAttendanceTime, getServerTimezone } from '@/lib/utils/timezone'
-import { formatDateForDatabase, syncServerTime } from '@/lib/database/timezone'
+import { validateAttendanceTime, getServerTimezone, syncServerTime } from '@/lib/utils/timezone'
+import { formatDateForDatabase } from '@/lib/database/timezone'
 import { createAttendanceError, AttendanceErrorCode, AttendanceErrorLogger, AttendanceError, parseError } from '@/lib/errors/attendance'
 import { revalidateAttendanceData } from '@/lib/cache/revalidation'
+import { isOutsideWorkingHoursDynamic, getCurrentPeriodDynamic } from '@/lib/utils/absensi'
+import { invalidateGlobalWaktuAbsensiCache } from '@/lib/cache/waktuAbsensi'
 import prisma from '@/lib/prisma'
 
 export async function submitAbsensi(formData: FormData) {
@@ -35,14 +37,14 @@ export async function submitAbsensi(formData: FormData) {
     }
 
     // Validate timezone and time consistency
-    const serverTime = await syncServerTime()
     const clientTime = clientTimestamp ? new Date(clientTimestamp) : new Date()
+    const syncResult = await syncServerTime(clientTime, clientTimezone)
+    const serverTime = syncResult.serverTime
     
-    const timeValidation = validateAttendanceTime(clientTime, serverTime)
-    if (!timeValidation.isValid) {
+    if (!syncResult.isValid) {
       throw createAttendanceError(
         AttendanceErrorCode.TIMEZONE_MISMATCH,
-        timeValidation.message || 'Waktu tidak valid'
+        `Perbedaan waktu terlalu besar: ${Math.round(syncResult.timeDifference / 1000)} detik. Silakan sinkronkan waktu perangkat Anda.`
       )
     }
 
@@ -100,6 +102,40 @@ export async function submitAbsensi(formData: FormData) {
            AttendanceErrorCode.OUTSIDE_HOURS,
            'Tempat PKL ini hanya menggunakan absensi masuk'
          )
+       }
+
+       // Validasi waktu absensi menggunakan pengaturan dinamis
+       try {
+         const isOutsideHours = await isOutsideWorkingHoursDynamic(serverTime, tipe);
+         if (isOutsideHours) {
+           const currentPeriod = await getCurrentPeriodDynamic();
+           throw createAttendanceError(
+             AttendanceErrorCode.OUTSIDE_HOURS,
+             `Absensi ${tipe.toLowerCase()} hanya dapat dilakukan pada ${currentPeriod.label}. Waktu saat ini: ${serverTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}`
+           );
+         }
+       } catch (timeValidationError) {
+         // Jika terjadi error saat validasi waktu dinamis, gunakan fallback ke waktu default
+         console.warn('Dynamic time validation failed, using fallback:', timeValidationError);
+         
+         const hour = serverTime.getHours();
+         const minute = serverTime.getMinutes();
+         const time = hour + (minute / 60);
+         
+         let isOutsideDefaultHours = false;
+         if (tipe === 'MASUK') {
+           isOutsideDefaultHours = time < 7 || time > 10;
+         } else {
+           isOutsideDefaultHours = time < 13 || time > 17;
+         }
+         
+         if (isOutsideDefaultHours) {
+           const defaultPeriod = tipe === 'MASUK' ? '07:00 - 10:00' : '13:00 - 17:00';
+           throw createAttendanceError(
+             AttendanceErrorCode.OUTSIDE_HOURS,
+             `Absensi ${tipe.toLowerCase()} hanya dapat dilakukan pada ${defaultPeriod}. Waktu saat ini: ${serverTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}`
+           );
+         }
        }
 
        // Cek apakah sudah absen hari ini untuk tipe yang sama

@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { TipeAbsensi } from "@prisma/client"
+import { isOutsideWorkingHoursDynamic } from "@/lib/utils/absensi"
 
 export interface AbsensiData {
   id: string
@@ -24,18 +25,25 @@ export interface AbsensiResponse {
   sudahAbsenHariIni: boolean
 }
 
-// Fungsi untuk mengecek apakah absensi dilakukan di luar waktu
-function isOutsideWorkingHours(waktu: Date, tipe: TipeAbsensi): boolean {
-  const hour = waktu.getHours()
-  const minute = waktu.getMinutes()
-  const time = hour + (minute / 60)
-  
-  if (tipe === TipeAbsensi.MASUK) {
-    // Jam masuk: 07:00 - 10:00
-    return time < 7 || time > 10
-  } else {
-    // Jam pulang: 13:00 - 17:00
-    return time < 13 || time > 17
+// Fungsi untuk mengecek apakah absensi dilakukan di luar waktu (dengan fallback ke waktu default)
+async function isOutsideWorkingHours(waktu: Date, tipe: TipeAbsensi): Promise<boolean> {
+  try {
+    return await isOutsideWorkingHoursDynamic(waktu, tipe);
+  } catch (error) {
+    console.error('Error checking working hours dynamically, using fallback:', error);
+    
+    // Fallback ke waktu default jika terjadi error
+    const hour = waktu.getHours();
+    const minute = waktu.getMinutes();
+    const time = hour + (minute / 60);
+    
+    if (tipe === TipeAbsensi.MASUK) {
+      // Jam masuk default: 07:00 - 10:00
+      return time < 7 || time > 10;
+    } else {
+      // Jam pulang default: 13:00 - 17:00
+      return time < 13 || time > 17;
+    }
   }
 }
 
@@ -108,25 +116,27 @@ export async function getAbsensiData(bulan?: string): Promise<AbsensiResponse> {
     })
 
     // Transform data dan tambahkan info di luar waktu
-    const transformedData: AbsensiData[] = absensiList.map(absensi => {
-      let diLuarWaktu = false
-      
-      if (absensi.tipe === TipeAbsensi.MASUK && absensi.waktuMasuk) {
-        diLuarWaktu = isOutsideWorkingHours(absensi.waktuMasuk, TipeAbsensi.MASUK)
-      } else if (absensi.tipe === TipeAbsensi.PULANG && absensi.waktuPulang) {
-        diLuarWaktu = isOutsideWorkingHours(absensi.waktuPulang, TipeAbsensi.PULANG)
-      }
+    const transformedData: AbsensiData[] = await Promise.all(
+      absensiList.map(async (absensi) => {
+        let diLuarWaktu = false;
+        
+        if (absensi.tipe === TipeAbsensi.MASUK && absensi.waktuMasuk) {
+          diLuarWaktu = await isOutsideWorkingHours(absensi.waktuMasuk, TipeAbsensi.MASUK);
+        } else if (absensi.tipe === TipeAbsensi.PULANG && absensi.waktuPulang) {
+          diLuarWaktu = await isOutsideWorkingHours(absensi.waktuPulang, TipeAbsensi.PULANG);
+        }
 
-      return {
-        id: absensi.id,
-        tanggal: absensi.tanggal,
-        waktuMasuk: absensi.waktuMasuk,
-        waktuPulang: absensi.waktuPulang,
-        tipe: absensi.tipe,
-        tempatPkl: absensi.tempatPkl,
-        diLuarWaktu
-      }
-    })
+        return {
+          id: absensi.id,
+          tanggal: absensi.tanggal,
+          waktuMasuk: absensi.waktuMasuk,
+          waktuPulang: absensi.waktuPulang,
+          tipe: absensi.tipe,
+          tempatPkl: absensi.tempatPkl,
+          diLuarWaktu
+        };
+      })
+    )
 
     return {
       success: true,

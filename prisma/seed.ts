@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import { seedWaktuAbsensiSetting } from './seeders/waktuAbsensiSetting'
 
 const prisma = new PrismaClient()
 
@@ -71,7 +72,7 @@ async function main() {
     create: {
       id: 'tempat1',
       nama: 'PT. Teknologi Maju',
-      alamat: 'Jl. Sudirman No. 123, Jakarta',
+      alamat: 'Jl. Sudirman No. 123, Makassar',
       // Removed telepon and namaContact as they don't exist in current schema
       // pinAbsensi will be auto-generated with default cuid()
       // isActive defaults to true
@@ -218,6 +219,9 @@ async function main() {
       dokumentasi: null,
     },
   })
+
+  // Seed WaktuAbsensiSetting for all TempatPkl
+  await seedWaktuAbsensiSetting()
 
   console.log('Seed data created successfully!')
   console.log('Login credentials:')

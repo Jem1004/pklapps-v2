@@ -4,7 +4,7 @@
  */
 
 import { z } from 'zod'
-import { detectClientTimezone, getServerTimezone } from '@/lib/utils/timezone'
+import { getClientTimezone, getServerTimezone } from '@/lib/utils/timezone'
 
 export interface TimezoneValidationResult {
   isValid: boolean
@@ -83,7 +83,7 @@ export function validateAttendanceSubmissionTime(
   serverTimezone?: string
 ): TimezoneValidationResult {
   try {
-    const client = clientTimezone || detectClientTimezone()
+    const client = clientTimezone || getClientTimezone()
     const server = serverTimezone || getServerTimezone()
     
     // Validate timezone formats
