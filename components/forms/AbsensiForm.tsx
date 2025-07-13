@@ -93,13 +93,8 @@ export function AbsensiForm({
   
   const watchedPin = watch('pin')
   
-  // Initialize PIN from storage on component mount
+  // Initialize component without PIN storage
   useEffect(() => {
-    const storedPin = pinStorage.getStoredPin()
-    if (storedPin) {
-      setValue('pin', storedPin)
-    }
-    
     // Check timezone validity with improved async handling
     const checkTimezone = async () => {
       try {
@@ -139,14 +134,10 @@ export function AbsensiForm({
     return () => clearInterval(interval)
   }, []) // Empty dependency array is correct here
   
-  // PIN suggestions based on input
+  // PIN suggestions disabled for security
   useEffect(() => {
-    if (watchedPin && watchedPin.length > 0) {
-      const suggestions = pinStorage.getPinSuggestions(watchedPin)
-      setFormState(prev => ({ ...prev, pinSuggestions: suggestions }))
-    } else {
-      setFormState(prev => ({ ...prev, pinSuggestions: [] }))
-    }
+    // PIN suggestions are disabled to prevent PIN storage
+    setFormState(prev => ({ ...prev, pinSuggestions: [] }))
   }, [watchedPin])
   
   // Auto-uppercase PIN input
@@ -186,8 +177,8 @@ export function AbsensiForm({
     setFormState(prev => ({ ...prev, isSubmitting: true }))
 
     try {
-      // Store PIN for future use
-      pinStorage.storePin(data.pin)
+      // PIN storage disabled for security reasons
+      // PIN should not be stored and must be entered each time
 
       // If offline, store for later sync
       if (!isOnline || formState.connectionQuality === 'offline') {
@@ -235,7 +226,8 @@ export function AbsensiForm({
       if (result.success) {
         toast.success(result.message || 'Absensi berhasil dicatat')
         
-        reset()
+        // Clear form and PIN for security
+        reset({ pin: '', tipe: 'MASUK' })
         setFormState(prev => ({ ...prev, selectedTipe: null }))
         onSubmitSuccess?.()
       } else {
@@ -346,11 +338,136 @@ export function AbsensiForm({
     }
   }, [isOnline]) // Only depend on isOnline to prevent infinite loop
 
+  // Security: Clear PIN when user leaves the page
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // Clear PIN field for security
+      setValue('pin', '')
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // Clear PIN when tab becomes hidden
+        setValue('pin', '')
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [setValue])
+
+  // Security: Auto-clear PIN after inactivity
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout
+
+    const resetTimeout = () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+      
+      // Clear PIN after 5 minutes of inactivity
+      timeoutId = setTimeout(() => {
+        if (watchedPin) {
+          setValue('pin', '')
+          toast.info('PIN telah dihapus karena tidak aktif selama 5 menit')
+        }
+      }, 5 * 60 * 1000) // 5 minutes
+    }
+
+    const handleActivity = () => {
+      resetTimeout()
+    }
+
+    // Reset timeout when PIN changes
+    if (watchedPin) {
+      resetTimeout()
+    }
+
+    // Listen for user activity
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart']
+    events.forEach(event => {
+      document.addEventListener(event, handleActivity, true)
+    })
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+      events.forEach(event => {
+        document.removeEventListener(event, handleActivity, true)
+      })
+    }
+  }, [watchedPin, setValue])
+
+  // Prevent browser from saving password
+  useEffect(() => {
+    const preventPasswordSave = (e: BeforeUnloadEvent) => {
+      // Clear PIN before page unload
+      const currentPin = getValues('pin')
+      if (currentPin) {
+        setValue('pin', '')
+      }
+      
+      // Clear any autofill data
+      const pinInput = document.querySelector('input[name="pin-absensi-temp"]') as HTMLInputElement
+      if (pinInput) {
+        pinInput.value = ''
+        pinInput.setAttribute('autocomplete', 'new-password')
+      }
+    }
+
+    const handleFormSubmit = (e: Event) => {
+      // Prevent browser password save dialog
+      const form = e.target as HTMLFormElement
+      if (form && form.tagName === 'FORM') {
+        setTimeout(() => {
+          const pinInput = document.querySelector('input[name="pin-absensi-temp"]') as HTMLInputElement
+          if (pinInput) {
+            pinInput.value = ''
+          }
+        }, 100)
+      }
+    }
+
+    window.addEventListener('beforeunload', preventPasswordSave)
+    document.addEventListener('submit', handleFormSubmit)
+
+    return () => {
+      window.removeEventListener('beforeunload', preventPasswordSave)
+      document.removeEventListener('submit', handleFormSubmit)
+    }
+  }, [getValues, setValue])
+
   const canAbsenMasuk = useMemo(() => !lastAbsensi?.waktuMasuk, [lastAbsensi?.waktuMasuk])
   const canAbsenPulang = useMemo(() => lastAbsensi?.waktuMasuk && !lastAbsensi?.waktuPulang, [lastAbsensi?.waktuMasuk, lastAbsensi?.waktuPulang])
 
   return (
     <div className="space-y-6">
+      {/* CSS to prevent password manager icons */}
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          input[type="password"]::-ms-reveal,
+          input[type="password"]::-ms-clear {
+            display: none;
+          }
+          input[type="password"]::-webkit-credentials-auto-fill-button,
+          input[type="password"]::-webkit-strong-password-auto-fill-button {
+            display: none !important;
+          }
+          input[name="pin-absensi-temp"] {
+            -webkit-text-security: ${formState.showPin ? 'none' : 'disc'};
+          }
+          .pin-input-secure {
+            background-image: none !important;
+            background-color: transparent !important;
+          }
+        `
+      }} />
       {/* Status Card */}
       <Card>
         <CardHeader>
@@ -437,19 +554,39 @@ export function AbsensiForm({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+          <form 
+            onSubmit={handleSubmit(handleFormSubmit)} 
+            className="space-y-6"
+            autoComplete="off"
+            noValidate
+          >
             {/* PIN Input */}
             <div className="space-y-2">
               <Label htmlFor="pin">PIN Absensi dari Pembimbing PKL</Label>
+              <div className="bg-amber-50 border border-amber-200 p-2 rounded text-xs text-amber-700">
+                <strong>⚠️ Keamanan:</strong> PIN bersifat rahasia dan tidak akan disimpan oleh sistem. Masukkan PIN setiap kali melakukan absensi.
+              </div>
               <div className="relative">
                 <Input
                   id="pin"
                   type={formState.showPin ? 'text' : 'password'}
                   placeholder="Masukkan PIN absensi..."
                   {...register('pin')}
-                  className={`pr-10 ${errors.pin ? 'border-destructive' : ''}`}
+                  className={`pr-10 pin-input-secure ${errors.pin ? 'border-destructive' : ''}`}
                   disabled={formState.isSubmitting}
-                  style={{ textTransform: 'uppercase' }}
+                  style={{ 
+                    textTransform: 'uppercase',
+                    ...(formState.showPin ? {} : { WebkitTextSecurity: 'disc' } as React.CSSProperties)
+                  }}
+                  autoComplete="new-password"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck="false"
+                  data-form-type="other"
+                  data-lpignore="true"
+                  data-1p-ignore="true"
+                  data-bwignore="true"
+                  data-name="pin-absensi-temp"
                 />
                 <Button
                   type="button"
@@ -467,29 +604,8 @@ export function AbsensiForm({
                 </Button>
               </div>
               
-              {/* PIN Suggestions */}
-              {formState.pinSuggestions.length > 0 && (
-                <div className="bg-blue-50 border border-blue-200 p-2 rounded text-xs">
-                  <div className="text-blue-700 font-medium mb-1">PIN tersimpan:</div>
-                  <div className="flex gap-1 flex-wrap">
-                    {formState.pinSuggestions.map((suggestion, index) => (
-                      <Button
-                        key={index}
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-6 px-2 text-xs"
-                        onClick={() => {
-                          setValue('pin', suggestion)
-                          setFormState(prev => ({ ...prev, pinSuggestions: [] }))
-                        }}
-                      >
-                        {suggestion}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* PIN Suggestions disabled for security */}
+              {/* PIN suggestions are disabled to prevent PIN storage and maintain security */}
               
               {errors.pin && (
                 <p className="text-sm text-destructive">{errors.pin.message}</p>
@@ -573,11 +689,15 @@ export function AbsensiForm({
             <div className="bg-muted/50 p-4 rounded-lg">
               <h4 className="font-medium mb-2">Cara Menggunakan:</h4>
               <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
-                <li>Masukkan PIN absensi yang diberikan oleh pembimbing PKL</li>
+                <li>Minta PIN absensi dari pembimbing PKL (PIN bersifat rahasia)</li>
+                <li>Masukkan PIN dengan hati-hati - PIN tidak akan disimpan oleh sistem</li>
                 <li>Pilih "Absen Masuk" saat tiba di tempat PKL</li>
                 <li>Pilih "Absen Pulang" saat selesai PKL</li>
-                <li>Sistem akan otomatis mencatat waktu absensi</li>
+                <li>PIN akan otomatis terhapus setelah absensi berhasil</li>
               </ol>
+              <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
+                <strong>🔒 Penting:</strong> Pastikan Inputkan PIN Absensi sesuai dengan waktu datang atau pulang
+              </div>
             </div>
 
             {/* Alerts */}
@@ -585,7 +705,7 @@ export function AbsensiForm({
               <Alert>
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>
-                  Absensi hanya dapat dilakukan pada jam 07:00-10:00 (masuk) dan 13:00-17:00 (pulang).
+                  Absensi hanya dapat dilakukan pada jam  (masuk) dan  (pulang).
                 </AlertDescription>
               </Alert>
             )}
