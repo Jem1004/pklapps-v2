@@ -262,6 +262,64 @@ export async function submitAbsensi(formData: FormData) {
   }
 }
 
+export async function getTodayAbsensi() {
+  try {
+    const session = await getAuthenticatedSession()
+
+    const student = await prisma.student.findUnique({
+      where: {
+        userId: session.user.id
+      }
+    })
+
+    if (!student) {
+      return {
+        success: false,
+        message: 'Data student tidak ditemukan',
+        hasTempatPkl: false
+      }
+    }
+
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const todayAbsensi = await prisma.absensi.findMany({
+      where: {
+        studentId: student.id,
+        tanggal: today
+      },
+      orderBy: {
+        tipe: 'asc'
+      }
+    })
+
+    const absensiMasuk = todayAbsensi.find(a => a.tipe === 'MASUK')
+    const absensiPulang = todayAbsensi.find(a => a.tipe === 'PULANG')
+
+    return {
+      success: true,
+      data: {
+        tanggal: today.toISOString().split('T')[0],
+        waktuMasuk: absensiMasuk?.waktuMasuk?.toLocaleTimeString('id-ID', {
+          hour: '2-digit',
+          minute: '2-digit'
+        }) || null,
+        waktuPulang: absensiPulang?.waktuPulang?.toLocaleTimeString('id-ID', {
+          hour: '2-digit',
+          minute: '2-digit'
+        }) || null
+      },
+      hasTempatPkl: !!student.tempatPklId
+    }
+  } catch (error) {
+    console.error('Error getting today absensi:', error)
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Terjadi kesalahan yang tidak terduga'
+    }
+  }
+}
+
 export async function getRecentAbsensi() {
   try {
     const session = await getAuthenticatedSession()

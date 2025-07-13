@@ -100,12 +100,53 @@ interface JurnalWithRelations {
   }>
 }
 
+// Helper function to validate and parse date
+function parseDate(dateString: string): Date {
+  // Validate date format (YYYY-MM-DD)
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dateRegex.test(dateString)) {
+    throw ApiResponseHelper.validationError({ message: 'Format tanggal harus YYYY-MM-DD' });
+  }
+
+  const date = new Date(dateString + 'T00:00:00.000Z');
+  if (isNaN(date.getTime())) {
+    throw ApiResponseHelper.validationError({ message: 'Tanggal tidak valid' });
+  }
+
+  return date;
+}
+
 /**
  * GET /api/jurnal
- * Mengambil daftar jurnal dengan pagination dan filter
+ * Mengambil daftar jurnal dengan pagination dan filter, atau jurnal berdasarkan tanggal
  */
 async function handleGetJurnal(request: NextRequest) {
   const { searchParams } = new URL(request.url);
+  const dateParam = searchParams.get('date');
+
+  // Jika ada parameter date, ambil jurnal berdasarkan tanggal untuk student yang login
+  if (dateParam) {
+    const { student } = await validateSessionAndGetStudent();
+    const targetDate = parseDate(dateParam);
+
+    const jurnal = await prisma.jurnal.findUnique({
+      where: {
+        studentId_tanggal: {
+          studentId: student.id,
+          tanggal: targetDate,
+        },
+      },
+      include: jurnalInclude,
+    });
+
+    if (!jurnal) {
+      return ApiResponseHelper.notFound('Jurnal untuk tanggal ini tidak ditemukan');
+    }
+
+    return ApiResponseHelper.success(jurnal, 'Jurnal berhasil ditemukan');
+  }
+
+  // Logika existing untuk pagination dan filter
   const { pagination, filters } = parseQueryParams(searchParams);
 
   const validatedPagination = validatePaginationOptions(pagination);
@@ -214,11 +255,53 @@ export async function POST(request: NextRequest) {
 
 /**
  * PUT /api/jurnal
- * Update jurnal (batch update)
+ * Update jurnal (batch update atau berdasarkan tanggal)
  */
 async function handlePutJurnal(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const dateParam = searchParams.get('date');
   const body = await request.json();
 
+  // Jika ada parameter date, update jurnal berdasarkan tanggal untuk student yang login
+  if (dateParam) {
+    const { student } = await validateSessionAndGetStudent();
+    const targetDate = parseDate(dateParam);
+
+    // Validasi input
+    if (!body.kegiatan || typeof body.kegiatan !== 'string' || body.kegiatan.trim() === '') {
+      throw ApiResponseHelper.validationError({ message: 'Kegiatan harus diisi' });
+    }
+
+    // Cek apakah jurnal untuk tanggal ini sudah ada
+    const existingJurnal = await prisma.jurnal.findUnique({
+      where: {
+        studentId_tanggal: {
+          studentId: student.id,
+          tanggal: targetDate,
+        },
+      },
+    });
+
+    if (!existingJurnal) {
+      throw ApiResponseHelper.notFound('Jurnal untuk tanggal ini tidak ditemukan');
+    }
+
+    // Update jurnal
+    const updatedJurnal = await prisma.jurnal.update({
+      where: {
+        id: existingJurnal.id,
+      },
+      data: {
+        kegiatan: body.kegiatan.trim(),
+        dokumentasi: body.dokumentasi?.trim() || null,
+      },
+      include: jurnalInclude,
+    });
+
+    return ApiResponseHelper.success(updatedJurnal, 'Jurnal berhasil diperbarui');
+  }
+
+  // Logika existing untuk batch update
   if (!Array.isArray(body)) {
     return ApiResponseHelper.validationError({ message: 'Body harus berupa array' });
   }
@@ -258,12 +341,43 @@ export async function PUT(request: NextRequest) {
 
 /**
  * DELETE /api/jurnal
- * Delete jurnal (batch delete)
+ * Delete jurnal (batch delete atau berdasarkan tanggal)
  */
 async function handleDeleteJurnal(request: NextRequest) {
   const { searchParams } = new URL(request.url);
+  const dateParam = searchParams.get('date');
   const idsParam = searchParams.get('ids');
 
+  // Jika ada parameter date, hapus jurnal berdasarkan tanggal untuk student yang login
+  if (dateParam) {
+    const { student } = await validateSessionAndGetStudent();
+    const targetDate = parseDate(dateParam);
+
+    // Cek apakah jurnal untuk tanggal ini sudah ada
+    const existingJurnal = await prisma.jurnal.findUnique({
+      where: {
+        studentId_tanggal: {
+          studentId: student.id,
+          tanggal: targetDate,
+        },
+      },
+    });
+
+    if (!existingJurnal) {
+      throw ApiResponseHelper.notFound('Jurnal untuk tanggal ini tidak ditemukan');
+    }
+
+    // Hapus jurnal
+    await prisma.jurnal.delete({
+      where: {
+        id: existingJurnal.id,
+      },
+    });
+
+    return ApiResponseHelper.success(null, 'Jurnal berhasil dihapus');
+  }
+
+  // Logika existing untuk batch delete
   if (!idsParam) {
     return ApiResponseHelper.validationError({ message: 'Parameter ids diperlukan' });
   }

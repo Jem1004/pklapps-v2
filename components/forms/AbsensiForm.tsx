@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Clock, LogIn, LogOut, Eye, EyeOff, AlertTriangle, WifiOff, Save, RefreshCw } from 'lucide-react'
@@ -147,7 +147,7 @@ export function AbsensiForm({
     } else {
       setFormState(prev => ({ ...prev, pinSuggestions: [] }))
     }
-  }, [watchedPin, pinStorage])
+  }, [watchedPin])
   
   // Auto-uppercase PIN input
   useEffect(() => {
@@ -160,6 +160,11 @@ export function AbsensiForm({
   }, [watchedPin, setValue])
 
   const handleFormSubmit = async (data: PinAbsensiInput) => {
+    // Prevent multiple submissions
+    if (formState.isSubmitting) {
+      return
+    }
+
     if (!formState.selectedTipe) {
       toast.error('Pilih tipe absensi terlebih dahulu')
       return
@@ -332,17 +337,17 @@ export function AbsensiForm({
     } catch (error) {
       console.error('Sync failed:', error)
     }
-  }, [isOnline, offlineStorage])
+  }, [isOnline])
   
   // Auto-sync when coming online
   useEffect(() => {
     if (isOnline && formState.offlineQueueCount > 0) {
       handleSyncOfflineData()
     }
-  }, [isOnline, formState.offlineQueueCount]) // Removed handleSyncOfflineData from deps to prevent infinite loop
+  }, [isOnline]) // Only depend on isOnline to prevent infinite loop
 
-  const canAbsenMasuk = !lastAbsensi?.waktuMasuk
-  const canAbsenPulang = lastAbsensi?.waktuMasuk && !lastAbsensi?.waktuPulang
+  const canAbsenMasuk = useMemo(() => !lastAbsensi?.waktuMasuk, [lastAbsensi?.waktuMasuk])
+  const canAbsenPulang = useMemo(() => lastAbsensi?.waktuMasuk && !lastAbsensi?.waktuPulang, [lastAbsensi?.waktuMasuk, lastAbsensi?.waktuPulang])
 
   return (
     <div className="space-y-6">
@@ -443,7 +448,7 @@ export function AbsensiForm({
                   placeholder="Masukkan PIN absensi..."
                   {...register('pin')}
                   className={`pr-10 ${errors.pin ? 'border-destructive' : ''}`}
-                  disabled={formState.isSubmitting || !isOnline}
+                  disabled={formState.isSubmitting}
                   style={{ textTransform: 'uppercase' }}
                 />
                 <Button
@@ -452,7 +457,7 @@ export function AbsensiForm({
                   size="sm"
                   className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                   onClick={() => setFormState(prev => ({ ...prev, showPin: !prev.showPin }))}
-                  disabled={formState.isSubmitting || !isOnline}
+                  disabled={formState.isSubmitting}
                 >
                   {formState.showPin ? (
                     <EyeOff className="h-4 w-4" />
@@ -501,12 +506,11 @@ export function AbsensiForm({
                 className="h-16 flex flex-col gap-2"
                 disabled={!canAbsenMasuk || formState.isSubmitting || period.type === 'TUTUP'}
                 onClick={() => {
+                  if (formState.isSubmitting) return
                   handleTipeSelect('MASUK')
-                  if (canAbsenMasuk && !formState.isSubmitting && period.type !== 'TUTUP') {
-                    const pin = getValues('pin')
-                    if (pin && pin.length >= 4) {
-                      handleSubmit(handleFormSubmit)()
-                    }
+                  const pin = getValues('pin')
+                  if (pin && pin.length >= 4) {
+                    handleSubmit(handleFormSubmit)()
                   }
                 }}
               >
@@ -536,12 +540,11 @@ export function AbsensiForm({
                 className="h-16 flex flex-col gap-2"
                 disabled={!canAbsenPulang || formState.isSubmitting || period.type === 'TUTUP'}
                 onClick={() => {
+                  if (formState.isSubmitting) return
                   handleTipeSelect('PULANG')
-                  if (canAbsenPulang && !formState.isSubmitting && period.type !== 'TUTUP') {
-                    const pin = getValues('pin')
-                    if (pin && pin.length >= 4) {
-                      handleSubmit(handleFormSubmit)()
-                    }
+                  const pin = getValues('pin')
+                  if (pin && pin.length >= 4) {
+                    handleSubmit(handleFormSubmit)()
                   }
                 }}
               >

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { toast } from 'sonner'
-import { submitAbsensi as submitAbsensiAction, getRecentAbsensi as getRecentAbsensiAction } from '@/app/absensi/actions'
+import { submitAbsensi as submitAbsensiAction, getRecentAbsensi as getRecentAbsensiAction, getTodayAbsensi as getTodayAbsensiAction } from '@/app/absensi/actions'
 import { TipeAbsensi } from '@prisma/client'
 import { getClientTimezone, getCurrentServerTime, syncServerTime } from '@/lib/utils/timezone'
 import { withRetry, parseError, AttendanceErrorCode } from '@/lib/errors/attendance'
@@ -36,6 +36,11 @@ export function useAbsensi(options: UseAbsensiOptions = {}): UseAbsensiReturn {
   const [recentAbsensi, setRecentAbsensi] = useState<RecentAbsensi[]>([])
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [hasTempatPkl, setHasTempatPkl] = useState(true)
+  const [todayAbsensi, setTodayAbsensi] = useState<{
+    tanggal: string
+    waktuMasuk?: string | null
+    waktuPulang?: string | null
+  } | null>(null)
 
   /**
    * Transform data dari API ke format yang digunakan di UI
@@ -52,6 +57,28 @@ export function useAbsensi(options: UseAbsensiOptions = {}): UseAbsensiReturn {
       }
     }))
   }, [])
+
+  /**
+   * Load data absensi hari ini dari server
+   */
+  const loadTodayAbsensi = useCallback(async (): Promise<void> => {
+    try {
+      const result = await getTodayAbsensiAction()
+      
+      if (result.success && result.data) {
+        setTodayAbsensi(result.data)
+        setHasTempatPkl(result.hasTempatPkl ?? true)
+      } else {
+        const errorMessage = result.message || 'Gagal memuat data absensi hari ini'
+        console.error('Error loading today absensi:', errorMessage)
+        onLoadError?.(errorMessage)
+      }
+    } catch (error) {
+      const errorMessage = 'Terjadi kesalahan saat memuat data absensi hari ini'
+      console.error('Error loading today absensi:', error)
+      onLoadError?.(errorMessage)
+    }
+  }, [onLoadError])
 
   /**
    * Load data absensi terbaru dari server
@@ -82,14 +109,14 @@ export function useAbsensi(options: UseAbsensiOptions = {}): UseAbsensiReturn {
   const refreshRecentAbsensi = useCallback(async (): Promise<void> => {
     setIsRefreshing(true)
     try {
-      await loadRecentAbsensi()
+      await Promise.all([loadRecentAbsensi(), loadTodayAbsensi()])
       toast.success('Data berhasil diperbarui')
     } catch (error) {
       toast.error('Gagal memperbarui data')
     } finally {
       setIsRefreshing(false)
     }
-  }, [loadRecentAbsensi])
+  }, [loadRecentAbsensi, loadTodayAbsensi])
 
   /**
    * Submit absensi dengan PIN dan tipe (Enhanced with timezone and retry)
@@ -173,7 +200,7 @@ export function useAbsensi(options: UseAbsensiOptions = {}): UseAbsensiReturn {
       
       if (result.success) {
         // Refresh data setelah submit berhasil
-        await loadRecentAbsensi()
+        await Promise.all([loadRecentAbsensi(), loadTodayAbsensi()])
         
         const successMessage = result.message || 'Absensi berhasil dicatat!'
         toast.success(successMessage)
@@ -222,25 +249,28 @@ export function useAbsensi(options: UseAbsensiOptions = {}): UseAbsensiReturn {
     } finally {
       setIsSubmitting(false)
     }
-  }, [loadRecentAbsensi, onSubmitSuccess, onSubmitError])
+  }, [loadRecentAbsensi, loadTodayAbsensi, onSubmitSuccess, onSubmitError])
 
   // Auto-load data saat hook pertama kali digunakan
   useEffect(() => {
     if (autoLoad && session?.user?.role === 'STUDENT') {
       loadRecentAbsensi()
+      loadTodayAbsensi()
     }
-  }, [autoLoad, session?.user?.role]) // loadRecentAbsensi removed from deps to prevent infinite loop
+  }, [autoLoad, session?.user?.role]) // loadRecentAbsensi and loadTodayAbsensi removed from deps to prevent infinite loop
 
   return {
     // State
     isSubmitting,
     recentAbsensi,
+    todayAbsensi,
     isRefreshing,
     hasTempatPkl,
     
     // Actions
     submitAbsensi,
     refreshRecentAbsensi,
-    loadRecentAbsensi
+    loadRecentAbsensi,
+    loadTodayAbsensi
   }
 }

@@ -44,7 +44,8 @@ export default function AbsensiPage() {
     hasTempatPkl,
     submitAbsensi: submitAbsensiHook,
     refreshRecentAbsensi,
-    loadRecentAbsensi
+    loadRecentAbsensi,
+    todayAbsensi
   } = useAbsensi({
     autoLoad: activeSubmenu === 'history',
     onSubmitSuccess: handleSubmitSuccess,
@@ -109,13 +110,16 @@ export default function AbsensiPage() {
     return (periodString: string) => {
       switch (periodString) {
         case 'Waktu Masuk':
-          return { type: 'MASUK' as const, label: 'Waktu Masuk', color: 'text-green-600', bgColor: 'bg-green-50', borderColor: 'border-green-200', icon: Clock }
+        case 'Waktu Absen Masuk':
+          return { type: 'MASUK' as const, label: 'Waktu Absen Masuk', color: 'text-green-600', bgColor: 'bg-green-50', borderColor: 'border-green-200', icon: Clock }
         case 'Jam Kerja':
           return { type: 'MASUK' as const, label: 'Jam Kerja', color: 'text-blue-600', bgColor: 'bg-blue-50', borderColor: 'border-blue-200', icon: Clock }
         case 'Waktu Pulang':
-          return { type: 'PULANG' as const, label: 'Waktu Pulang', color: 'text-orange-600', bgColor: 'bg-orange-50', borderColor: 'border-orange-200', icon: Clock }
+        case 'Waktu Absen Pulang':
+          return { type: 'PULANG' as const, label: 'Waktu Absen Pulang', color: 'text-orange-600', bgColor: 'bg-orange-50', borderColor: 'border-orange-200', icon: Clock }
         case 'Selesai':
-          return { type: 'TUTUP' as const, label: 'Selesai', color: 'text-gray-600', bgColor: 'bg-gray-50', borderColor: 'border-gray-200', icon: Clock }
+        case 'Di Luar Jam Absensi':
+          return { type: 'TUTUP' as const, label: 'Di Luar Jam Absensi', color: 'text-red-600', bgColor: 'bg-red-50', borderColor: 'border-red-200', icon: Clock }
         default:
           return { type: 'TUTUP' as const, label: periodString || 'Belum Dimulai', color: 'text-gray-500', bgColor: 'bg-gray-50', borderColor: 'border-gray-200', icon: Clock }
       }
@@ -275,6 +279,11 @@ export default function AbsensiPage() {
                  isOnline={isOnline}
                  onSubmitSuccess={handleFormSubmitSuccess}
                  onSubmitError={handleSubmitError}
+                 lastAbsensi={todayAbsensi ? {
+                   tanggal: todayAbsensi.tanggal,
+                   waktuMasuk: todayAbsensi.waktuMasuk || undefined,
+                   waktuPulang: todayAbsensi.waktuPulang || undefined
+                 } : undefined}
                />
             </motion.div>
           </>

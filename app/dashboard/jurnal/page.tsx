@@ -59,8 +59,8 @@ export default function DashboardJurnalPage() {
       
       setIsLoading(true)
       try {
-        // Use new endpoint with date as parameter
-        const response = await fetch(`/api/jurnal/${selectedDate}`)
+        // Use new endpoint with date as query parameter
+        const response = await fetch(`/api/jurnal?date=${selectedDate}`)
         const data = await response.json()
         
         if (data.success && data.data) {
@@ -100,7 +100,7 @@ export default function DashboardJurnalPage() {
       
       if (jurnal) {
         // Update existing jurnal using new endpoint
-        response = await fetch(`/api/jurnal/${selectedDate}`, {
+        response = await fetch(`/api/jurnal?date=${selectedDate}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json'
@@ -156,7 +156,7 @@ export default function DashboardJurnalPage() {
     setDeleteLoading(true)
     
     try {
-      const response = await fetch(`/api/jurnal/${selectedDate}`, {
+      const response = await fetch(`/api/jurnal?date=${selectedDate}`, {
         method: 'DELETE'
       })
       

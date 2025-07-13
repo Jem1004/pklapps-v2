@@ -59,11 +59,17 @@ export interface UseAbsensiReturn {
   recentAbsensi: RecentAbsensi[]
   isRefreshing: boolean
   hasTempatPkl: boolean
+  todayAbsensi: {
+    tanggal: string
+    waktuMasuk?: string | null
+    waktuPulang?: string | null
+  } | null
   
   // Actions
   submitAbsensi: (pin: string, tipe: TipeAbsensi) => Promise<AbsensiSubmitResult>
   refreshRecentAbsensi: () => Promise<void>
   loadRecentAbsensi: () => Promise<void>
+  loadTodayAbsensi: () => Promise<void>
 }
 
 export interface UseAbsensiOptions {
