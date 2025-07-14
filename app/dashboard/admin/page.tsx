@@ -1,7 +1,7 @@
 'use client'
 
 import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState, Suspense } from 'react'
 import { motion } from 'framer-motion'
 import MainLayoutAdmin from '@/components/layout/MainLayoutAdmin'
@@ -36,7 +36,6 @@ interface DashboardStats {
 
 // Komponen terpisah untuk menangani useSearchParams
 function AdminDashboardContent() {
-  const { useSearchParams } = require('next/navigation')
   const searchParams = useSearchParams()
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -50,11 +49,13 @@ function AdminDashboardContent() {
     if (status === 'loading') return
     
     if (!session) {
+      console.log('Admin access denied: No session')
       router.push('/auth/login')
       return
     }
     
     if (session.user.role !== 'ADMIN') {
+      console.log('Admin access denied:', { user: session.user, role: session.user.role })
       router.push('/dashboard/guru')
       return
     }
@@ -137,7 +138,7 @@ function AdminDashboardContent() {
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center space-y-4">
             <Loader2 className="h-8 w-8 animate-spin mx-auto text-blue-600" />
-            <p className="text-gray-600">Memuat dashboard...</p>
+            <p className="text-gray-600">Memuat dashboard admin...</p>
           </div>
         </div>
       </MainLayoutAdmin>
@@ -165,12 +166,70 @@ function AdminDashboardContent() {
   
   return (
     <MainLayoutAdmin>
-      {/* Your existing dashboard content */}
       <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Dashboard Admin</h1>
+            <p className="text-gray-600 mt-1">Kelola sistem jurnal PKL</p>
+          </div>
+          <Button 
+            onClick={handleRefresh} 
+            variant="outline" 
+            disabled={isRefreshing}
+            className="flex items-center gap-2"
+          >
+            <RefreshCcw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
+
         {/* Dashboard stats cards */}
         {dashboardStats && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* Stats cards implementation */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{dashboardStats.totalUsers?.value || 0}</div>
+                <p className="text-xs text-muted-foreground">{dashboardStats.totalUsers?.change || ''}</p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Siswa</CardTitle>
+                <UserCheck className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{dashboardStats.totalStudents?.value || 0}</div>
+                <p className="text-xs text-muted-foreground">{dashboardStats.totalStudents?.change || ''}</p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Tempat PKL</CardTitle>
+                <Building className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{dashboardStats.totalTempatPkl?.value || 0}</div>
+                <p className="text-xs text-muted-foreground">{dashboardStats.totalTempatPkl?.change || ''}</p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Aktivitas Hari Ini</CardTitle>
+                <Activity className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{dashboardStats.todayActivity?.value || 0}</div>
+                <p className="text-xs text-muted-foreground">{dashboardStats.todayActivity?.change || ''}</p>
+              </CardContent>
+            </Card>
           </div>
         )}
         
