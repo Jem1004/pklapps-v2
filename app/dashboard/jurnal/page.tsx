@@ -85,11 +85,45 @@ export default function DashboardJurnalPage() {
     loadJurnal()
   }, [selectedDate, session])
 
+  const validateForm = () => {
+    // Validasi kegiatan
+    if (!formData.kegiatan.trim()) {
+      toast.error('Kegiatan harus diisi')
+      return false
+    }
+    
+    if (formData.kegiatan.trim().length < 10) {
+      toast.error('Kegiatan minimal 10 karakter')
+      return false
+    }
+    
+    if (formData.kegiatan.trim().length > 1000) {
+      toast.error('Kegiatan maksimal 1000 karakter')
+      return false
+    }
+    
+    // Validasi dokumentasi (opsional, tapi jika diisi harus berupa URL)
+    if (formData.dokumentasi && formData.dokumentasi.trim()) {
+      const urlPattern = /^(https?:\/\/)([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/
+      if (!urlPattern.test(formData.dokumentasi.trim())) {
+        toast.error('Dokumentasi harus berupa URL yang valid (contoh: https://example.com)')
+        return false
+      }
+      
+      if (formData.dokumentasi.trim().length > 500) {
+        toast.error('URL dokumentasi maksimal 500 karakter')
+        return false
+      }
+    }
+    
+    return true
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!formData.kegiatan.trim()) {
-      toast.error('Kegiatan harus diisi')
+    // Validasi form sebelum submit
+    if (!validateForm()) {
       return
     }
     
@@ -98,6 +132,11 @@ export default function DashboardJurnalPage() {
     try {
       let response
       
+      const submitData = {
+        kegiatan: formData.kegiatan.trim(),
+        dokumentasi: formData.dokumentasi?.trim() || null
+      }
+      
       if (jurnal) {
         // Update existing jurnal using new endpoint
         response = await fetch(`/api/jurnal?date=${selectedDate}`, {
@@ -105,10 +144,7 @@ export default function DashboardJurnalPage() {
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({
-            kegiatan: formData.kegiatan,
-            dokumentasi: formData.dokumentasi
-          })
+          body: JSON.stringify(submitData)
         })
       } else {
         // Create new jurnal
@@ -119,8 +155,7 @@ export default function DashboardJurnalPage() {
           },
           body: JSON.stringify({
             tanggal: selectedDate,
-            kegiatan: formData.kegiatan,
-            dokumentasi: formData.dokumentasi
+            ...submitData
           })
         })
       }
@@ -132,7 +167,14 @@ export default function DashboardJurnalPage() {
         setJurnal(data.data)
         setIsEditing(false)
       } else {
-        toast.error(data.message || 'Gagal menyimpan jurnal')
+        // Handle specific validation errors
+        if (data.message && data.message.includes('dokumentasi')) {
+          toast.error('Format dokumentasi tidak valid. Gunakan URL yang benar (contoh: https://example.com)')
+        } else if (data.message && data.message.includes('kegiatan')) {
+          toast.error('Kegiatan harus diisi dengan minimal 10 karakter')
+        } else {
+          toast.error(data.message || 'Gagal menyimpan jurnal')
+        }
       }
     } catch (error) {
       console.error('Error saving jurnal:', error)
@@ -352,9 +394,20 @@ export default function DashboardJurnalPage() {
                                 Dokumentasi:
                               </Label>
                               <div className="p-4 bg-gray-50 rounded-lg border">
-                                <p className="text-sm md:text-base text-gray-900 whitespace-pre-wrap">
-                                  {jurnal.dokumentasi}
-                                </p>
+                                {/^(https?:\/\/)[\da-z\.-]+\.[a-z\.]{2,6}([\/\w \.-]*)*\/?$/.test(jurnal.dokumentasi) ? (
+                                  <a 
+                                    href={jurnal.dokumentasi} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-sm md:text-base text-blue-600 hover:text-blue-800 underline break-all"
+                                  >
+                                    {jurnal.dokumentasi}
+                                  </a>
+                                ) : (
+                                  <p className="text-sm md:text-base text-gray-900 whitespace-pre-wrap">
+                                    {jurnal.dokumentasi}
+                                  </p>
+                                )}
                               </div>
                             </div>
                           )}
@@ -362,30 +415,57 @@ export default function DashboardJurnalPage() {
                       ) : (
                         <form onSubmit={handleSubmit} className="space-y-4">
                           <div className="space-y-2">
-                            <Label htmlFor="kegiatan" className="text-sm font-medium">
-                              Kegiatan <span className="text-red-500">*</span>
-                            </Label>
+                            <div className="flex justify-between items-center">
+                              <Label htmlFor="kegiatan" className="text-sm font-medium">
+                                Kegiatan <span className="text-red-500">*</span>
+                              </Label>
+                              <span className={`text-xs ${
+                                formData.kegiatan.length < 10 ? 'text-red-500' : 
+                                formData.kegiatan.length > 1000 ? 'text-red-500' : 'text-gray-500'
+                              }`}>
+                                {formData.kegiatan.length}/1000 (min: 10)
+                              </span>
+                            </div>
                             <Textarea
                               id="kegiatan"
-                              placeholder="Deskripsikan kegiatan yang dilakukan hari ini..."
+                              placeholder="Deskripsikan kegiatan yang dilakukan hari ini dengan detail (minimal 10 karakter)..."
                               value={formData.kegiatan}
                               onChange={(e) => setFormData(prev => ({ ...prev, kegiatan: e.target.value }))}
-                              className="min-h-[120px] text-sm md:text-base resize-none"
+                              className={`min-h-[120px] text-sm md:text-base resize-none ${
+                                formData.kegiatan.length < 10 && formData.kegiatan.length > 0 ? 'border-red-300 focus:border-red-500' : 
+                                formData.kegiatan.length > 1000 ? 'border-red-300 focus:border-red-500' : ''
+                              }`}
                               required
                             />
                           </div>
                           
                           <div className="space-y-2">
-                            <Label htmlFor="dokumentasi" className="text-sm font-medium">
-                              Dokumentasi (Opsional)
-                            </Label>
-                            <Textarea
+                            <div className="flex justify-between items-center">
+                              <Label htmlFor="dokumentasi" className="text-sm font-medium">
+                                Dokumentasi (Opsional)
+                              </Label>
+                              <span className={`text-xs ${
+                                formData.dokumentasi && formData.dokumentasi.length > 500 ? 'text-red-500' : 'text-gray-500'
+                              }`}>
+                                {formData.dokumentasi?.length || 0}/500
+                              </span>
+                            </div>
+                            <Input
                               id="dokumentasi"
-                              placeholder="Tambahkan dokumentasi atau catatan tambahan..."
+                              type="url"
+                              placeholder="https://example.com/dokumentasi (URL dokumentasi kegiatan)"
                               value={formData.dokumentasi}
                               onChange={(e) => setFormData(prev => ({ ...prev, dokumentasi: e.target.value }))}
-                              className="min-h-[80px] text-sm md:text-base resize-none"
+                              className={`text-sm md:text-base ${
+                                formData.dokumentasi && formData.dokumentasi.length > 500 ? 'border-red-300 focus:border-red-500' : 
+                                formData.dokumentasi && formData.dokumentasi.trim() && !/^(https?:\/\/)[\da-z\.-]+\.[a-z\.]{2,6}([\/\w \.-]*)*\/?$/.test(formData.dokumentasi.trim()) ? 'border-yellow-300 focus:border-yellow-500' : ''
+                              }`}
                             />
+                            {formData.dokumentasi && formData.dokumentasi.trim() && !/^(https?:\/\/)[\da-z\.-]+\.[a-z\.]{2,6}([\/\w \.-]*)*\/?$/.test(formData.dokumentasi.trim()) && (
+                              <p className="text-xs text-yellow-600 mt-1">
+                                💡 Format URL harus dimulai dengan http:// atau https://
+                              </p>
+                            )}
                           </div>
                           
                           <div className="flex flex-col sm:flex-row gap-2 pt-4">

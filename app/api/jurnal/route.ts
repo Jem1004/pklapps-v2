@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 // Internal imports
 import { ApiResponseHelper, handleApiError, parseQueryParams } from '@/lib/api/response';
-import { createJurnalSchema, jurnalFilterSchema } from '@/lib/validations/jurnal';
+import { createJurnalSchema, updateJurnalSchema, jurnalFilterSchema } from '@/lib/validations/jurnal';
 import { prisma, validatePaginationOptions, calculateOffset, calculateTotalPages } from '@/lib/database/config';
 import { authOptions } from '@/lib/auth/auth';
 
@@ -287,10 +287,12 @@ async function handlePutJurnal(request: NextRequest) {
     const { student } = await validateSessionAndGetStudent();
     const targetDate = parseDate(dateParam);
 
-    // Validasi input
-    if (!body.kegiatan || typeof body.kegiatan !== 'string' || body.kegiatan.trim() === '') {
-      throw ApiResponseHelper.validationError({ message: 'Kegiatan harus diisi' });
-    }
+    // Validasi input menggunakan updateJurnalSchema untuk konsistensi
+    const validatedData = updateJurnalSchema.parse({
+      ...body,
+      tanggal: targetDate,
+      studentId: student.id
+    });
 
     // Cek apakah jurnal untuk tanggal ini sudah ada
     const existingJurnal = await prisma.jurnal.findUnique({
@@ -306,14 +308,15 @@ async function handlePutJurnal(request: NextRequest) {
       throw ApiResponseHelper.notFound('Jurnal untuk tanggal ini tidak ditemukan');
     }
 
-    // Update jurnal
+    // Update jurnal dengan data yang sudah divalidasi
     const updatedJurnal = await prisma.jurnal.update({
       where: {
         id: existingJurnal.id,
       },
       data: {
-        kegiatan: body.kegiatan.trim(),
-        dokumentasi: body.dokumentasi?.trim() || null,
+        kegiatan: validatedData.kegiatan,
+        keterangan: validatedData.keterangan,
+        dokumentasi: validatedData.dokumentasi,
       },
       include: jurnalInclude,
     });
@@ -331,6 +334,7 @@ async function handlePutJurnal(request: NextRequest) {
     tanggal: z.date().optional(),
     kegiatan: z.string().min(10).max(1000).optional(),
     keterangan: z.string().max(500).optional(),
+    dokumentasi: z.string().url('Dokumentasi harus berupa URL yang valid').max(500, 'Dokumentasi maksimal 500 karakter').optional().nullable(),
   });
 
   const validatedUpdates = z.array(updateSchema).parse(body.map(item => ({
