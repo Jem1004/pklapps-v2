@@ -34,29 +34,82 @@ interface JurnalData {
   updatedAt: string
 }
 
+interface PaginationMeta {
+  page: number
+  limit: number
+  total: number
+  totalPages: number
+  hasNext: boolean
+  hasPrev: boolean
+}
+
 export default function JurnalList() {
   const { data: session } = useSession()
   const [jurnals, setJurnals] = useState<JurnalData[]>([])
   const [filteredJurnals, setFilteredJurnals] = useState<JurnalData[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [editingJurnal, setEditingJurnal] = useState<JurnalData | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [dateFilter, setDateFilter] = useState({ start: '', end: '' })
   const [isPrintReady, setIsPrintReady] = useState(false)
+  const [pagination, setPagination] = useState<PaginationMeta>({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0,
+    hasNext: false,
+    hasPrev: false
+  })
   const printRef = useRef<HTMLDivElement>(null)
 
-  const fetchJurnals = async () => {
+  const fetchJurnals = async (page: number = 1, reset: boolean = true) => {
     try {
-      setIsLoading(true)
-      const response = await fetch('/api/jurnal?all=true')
+      if (reset) {
+        setIsLoading(true)
+      } else {
+        setIsLoadingMore(true)
+      }
+      
+      const response = await fetch(`/api/jurnal?page=${page}&limit=10`)
       const result = await response.json()
       
       if (response.ok) {
-        const sortedJurnals = (result.data || []).sort((a: JurnalData, b: JurnalData) => 
+        const newJurnals = result.data || []
+        const sortedJurnals = newJurnals.sort((a: JurnalData, b: JurnalData) => 
           new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime()
         )
-        setJurnals(sortedJurnals)
-        setFilteredJurnals(sortedJurnals)
+        
+        if (reset) {
+          setJurnals(sortedJurnals)
+          setFilteredJurnals(sortedJurnals)
+        } else {
+          // Append new journals to existing ones
+          setJurnals(prev => {
+            const combined = [...prev, ...sortedJurnals]
+            // Remove duplicates based on id
+            const uniqueJurnals = combined.filter((jurnal, index, self) => 
+              index === self.findIndex(j => j.id === jurnal.id)
+            )
+            return uniqueJurnals.sort((a, b) => 
+              new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime()
+            )
+          })
+          setFilteredJurnals(prev => {
+            const combined = [...prev, ...sortedJurnals]
+            const uniqueJurnals = combined.filter((jurnal, index, self) => 
+              index === self.findIndex(j => j.id === jurnal.id)
+            )
+            return uniqueJurnals.sort((a, b) => 
+              new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime()
+            )
+          })
+        }
+        
+        // Update pagination metadata
+        if (result.pagination) {
+          setPagination(result.pagination)
+        }
       } else {
         console.error('Error fetching jurnals:', result.error)
       }
@@ -64,6 +117,13 @@ export default function JurnalList() {
       console.error('Error fetching jurnals:', error)
     } finally {
       setIsLoading(false)
+      setIsLoadingMore(false)
+    }
+  }
+  
+  const loadMoreJurnals = async () => {
+    if (pagination.hasNext && !isLoadingMore) {
+      await fetchJurnals(pagination.page + 1, false)
     }
   }
 
@@ -353,6 +413,34 @@ export default function JurnalList() {
           })
         )}
       </div>
+
+      {/* Load More Button */}
+      {pagination.hasNext && (
+        <div className="flex justify-center mt-6">
+          <Button 
+            onClick={loadMoreJurnals}
+            disabled={isLoadingMore}
+            variant="outline"
+            className="px-8 py-2"
+          >
+            {isLoadingMore ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900 mr-2"></div>
+                Memuat...
+              </>
+            ) : (
+              'Muat Lebih Banyak'
+            )}
+          </Button>
+        </div>
+      )}
+
+      {/* Pagination Info */}
+      {pagination.total > 0 && (
+        <div className="text-center mt-4 text-sm text-gray-600">
+          Menampilkan {filteredJurnals.length} dari {pagination.total} jurnal
+        </div>
+      )}
 
       {editingJurnal && (
         <EditJurnalDialog

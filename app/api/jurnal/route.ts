@@ -146,6 +146,9 @@ async function handleGetJurnal(request: NextRequest) {
     return ApiResponseHelper.success(jurnal, 'Jurnal berhasil ditemukan');
   }
 
+  // Validasi session dan dapatkan student yang login
+  const { student } = await validateSessionAndGetStudent();
+  
   // Logika existing untuk pagination dan filter
   const { pagination, filters } = parseQueryParams(searchParams);
 
@@ -159,8 +162,25 @@ async function handleGetJurnal(request: NextRequest) {
     search: filters.search,
   });
 
-  const whereClause: any = {};
-  if (validatedFilters.studentId) whereClause.studentId = validatedFilters.studentId;
+  // Pastikan hanya jurnal milik siswa yang login yang dikembalikan
+  const whereClause: any = {
+    studentId: student.id // Filter berdasarkan siswa yang login
+  };
+  
+  // Filter tambahan hanya jika diperlukan (untuk admin/guru bisa menggunakan endpoint terpisah)
+  if (validatedFilters.studentId && validatedFilters.studentId !== student.id) {
+    // Jika ada filter studentId yang berbeda, kembalikan array kosong
+    // karena siswa hanya boleh melihat jurnalnya sendiri
+    const emptyPagination = {
+      page: validatedPagination.page,
+      limit: validatedPagination.limit,
+      total: 0,
+      totalPages: 0,
+      hasNext: false,
+      hasPrev: false,
+    };
+    return ApiResponseHelper.paginated([], emptyPagination, 'Jurnal berhasil diambil');
+  }
   if (validatedFilters.startDate || validatedFilters.endDate) {
     whereClause.tanggal = {};
     if (validatedFilters.startDate) whereClause.tanggal.gte = validatedFilters.startDate;
