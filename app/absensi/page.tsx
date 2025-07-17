@@ -90,10 +90,18 @@ export default function AbsensiPage() {
   // Callback untuk form submit success
   const handleFormSubmitSuccess = useCallback(() => {
     setError('')
+    // Refresh today's attendance data to update button state
+    if (activeSubmenu === 'today') {
+      // Force refresh today's data to update lastAbsensi prop
+      setTimeout(() => {
+        // Small delay to ensure server data is updated
+        refreshRecentAbsensi()
+      }, 500)
+    }
     if (activeSubmenu === 'history') {
       loadRecentAbsensi()
     }
-  }, [activeSubmenu, loadRecentAbsensi])
+  }, [activeSubmenu, loadRecentAbsensi, refreshRecentAbsensi])
 
   const handleRefresh = useCallback(() => {
     refreshRecentAbsensi()

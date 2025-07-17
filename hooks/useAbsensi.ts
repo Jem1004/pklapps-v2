@@ -257,7 +257,7 @@ export function useAbsensi(options: UseAbsensiOptions = {}): UseAbsensiReturn {
       loadRecentAbsensi()
       loadTodayAbsensi()
     }
-  }, [autoLoad, session?.user?.role]) // loadRecentAbsensi and loadTodayAbsensi removed from deps to prevent infinite loop
+  }, [autoLoad, session?.user?.role, loadRecentAbsensi, loadTodayAbsensi])
 
   return {
     // State

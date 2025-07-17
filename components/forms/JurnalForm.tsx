@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { useState } from 'react'
 import { format } from 'date-fns'
-import { CalendarIcon, FileText } from 'lucide-react'
+import { CalendarIcon, FileText, Link } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -59,7 +59,8 @@ export function JurnalForm({
           tanggal: new Date(),
           studentId,
           kegiatan: '',
-          keterangan: ''
+          keterangan: '',
+          dokumentasi: ''
         })
       }
     } catch (error) {
@@ -163,6 +164,27 @@ export function JurnalForm({
                 {getCharacterCount(watch('keterangan') || '')}/500 karakter
               </p>
             </div>
+          </div>
+
+          {/* Dokumentasi */}
+          <div className="space-y-2">
+            <Label htmlFor="dokumentasi" className="flex items-center gap-2">
+              <Link className="h-4 w-4" />
+              Link Dokumentasi (Opsional)
+            </Label>
+            <Input
+              id="dokumentasi"
+              type="url"
+              placeholder="https://example.com/dokumentasi"
+              {...register('dokumentasi')}
+              className={errors.dokumentasi ? 'border-destructive' : ''}
+            />
+            {errors.dokumentasi && (
+              <p className="text-sm text-destructive">{errors.dokumentasi.message}</p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Masukkan URL link dokumentasi, foto, atau file pendukung kegiatan
+            </p>
           </div>
 
           {/* Tips */}
