@@ -59,6 +59,10 @@ export const updateJurnalSchema = z.object({
     ])
     .optional()
     .transform(val => val === '' || val === null ? null : val),
+  studentId: z
+    .string()
+    .min(1, 'Student ID is required')
+    .optional(),
 });
 
 // Jurnal filter validation schema

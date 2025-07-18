@@ -2,15 +2,19 @@
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
-import { useState } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { format } from 'date-fns'
 import { CalendarIcon, FileText, Link } from 'lucide-react'
+import { useDebounce } from '@/hooks/useDebounce'
+import { useOfflineJurnal } from '@/lib/offline/jurnalStorage'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Wifi, WifiOff, Loader2 } from 'lucide-react'
 import { createJurnalSchema, type CreateJurnalInput } from '@/lib/validations/jurnal'
 import { useErrorHandling } from '@/hooks/useErrorHandling'
 
@@ -30,7 +34,10 @@ export function JurnalForm({
   mode = 'create'
 }: JurnalFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitAttempts, setSubmitAttempts] = useState(0)
+  const [lastError, setLastError] = useState<string | null>(null)
   const { handleError } = useErrorHandling()
+  const { storeOfflineJurnal, isOnline } = useOfflineJurnal()
 
   const {
     register,
@@ -49,26 +56,99 @@ export function JurnalForm({
   })
 
   const watchedKegiatan = watch('kegiatan')
+  const watchedKeterangan = watch('keterangan')
+  
+  // Debounced values to prevent excessive re-renders
+  const debouncedKegiatan = useDebounce(watchedKegiatan || '', 300)
+  const debouncedKeterangan = useDebounce(watchedKeterangan || '', 300)
 
   const handleFormSubmit = async (data: CreateJurnalInput) => {
+    const maxRetries = 3
+    const retryDelay = 2000 // 2 seconds
+    
     try {
       setIsSubmitting(true)
-      await onSubmit(data)
-      if (mode === 'create') {
-        reset({
-          tanggal: new Date(),
-          studentId,
-          kegiatan: '',
-          keterangan: '',
-          dokumentasi: ''
+      setLastError(null)
+      
+      // Attempt submission with retry logic
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          setSubmitAttempts(attempt)
+          
+          // Check if online before attempting
+          if (!isOnline()) {
+            throw new Error('Device is offline')
+          }
+          
+          await onSubmit(data)
+          
+          // Success - reset form if creating new jurnal
+          if (mode === 'create') {
+            reset({
+              tanggal: new Date(),
+              studentId,
+              kegiatan: '',
+              keterangan: '',
+              dokumentasi: ''
+            })
+          }
+          
+          setSubmitAttempts(0)
+          return // Exit on success
+          
+        } catch (error) {
+          console.warn(`Submission attempt ${attempt} failed:`, error)
+          
+          // If this is the last attempt or device is offline, handle differently
+          if (attempt === maxRetries || !isOnline()) {
+            throw error
+          }
+          
+          // Wait before retry (with exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, retryDelay * attempt))
+        }
+      }
+      
+    } catch (error) {
+      console.error('All submission attempts failed:', error)
+      
+      // Store offline if device is offline and mode is create
+      if (!isOnline() && mode === 'create') {
+        const offlineData = {
+          studentId: data.studentId,
+          tanggal: data.tanggal,
+          kegiatan: data.kegiatan,
+          keterangan: data.keterangan || '',
+          dokumentasi: data.dokumentasi || '',
+          timestamp: Date.now(),
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        }
+        
+        const stored = storeOfflineJurnal(offlineData)
+        
+        if (stored) {
+          setLastError('Tidak ada koneksi internet. Jurnal disimpan offline dan akan dikirim otomatis saat koneksi tersedia.')
+          
+          // Reset form on successful offline storage
+          reset({
+            tanggal: new Date(),
+            studentId,
+            kegiatan: '',
+            keterangan: '',
+            dokumentasi: ''
+          })
+        } else {
+          setLastError('Gagal menyimpan jurnal. Pastikan perangkat memiliki ruang penyimpanan yang cukup.')
+        }
+      } else {
+        setLastError(`Gagal ${mode === 'create' ? 'menyimpan' : 'mengupdate'} jurnal setelah ${maxRetries} percobaan.`)
+        handleError(error as Error, 'JurnalForm.handleFormSubmit', {
+          userMessage: mode === 'create' ? 'Gagal menyimpan jurnal' : 'Gagal mengupdate jurnal'
         })
       }
-    } catch (error) {
-      handleError(error as Error, 'JurnalForm.handleFormSubmit', {
-        userMessage: mode === 'create' ? 'Gagal menyimpan jurnal' : 'Gagal mengupdate jurnal'
-      })
     } finally {
       setIsSubmitting(false)
+      setSubmitAttempts(0)
     }
   }
 
@@ -76,9 +156,13 @@ export function JurnalForm({
     setValue('tanggal', new Date())
   }
 
-  const getCharacterCount = (text: string) => {
+  const getCharacterCount = useCallback((text: string) => {
     return text?.length || 0
-  }
+  }, [])
+  
+  // Memoized character counts to prevent recalculation
+  const kegiatanCount = useMemo(() => getCharacterCount(debouncedKegiatan), [debouncedKegiatan, getCharacterCount])
+  const keteranganCount = useMemo(() => getCharacterCount(debouncedKeterangan), [debouncedKeterangan, getCharacterCount])
 
   return (
     <Card>
@@ -139,7 +223,7 @@ export function JurnalForm({
                 )}
               </div>
               <p className="text-xs text-muted-foreground">
-                {getCharacterCount(watchedKegiatan)}/1000 karakter
+                {kegiatanCount}/1000 karakter
               </p>
             </div>
           </div>
@@ -161,7 +245,7 @@ export function JurnalForm({
                 )}
               </div>
               <p className="text-xs text-muted-foreground">
-                {getCharacterCount(watch('keterangan') || '')}/500 karakter
+                {keteranganCount}/500 karakter
               </p>
             </div>
           </div>
@@ -198,6 +282,19 @@ export function JurnalForm({
             </ul>
           </div>
 
+          {/* Connection Status & Error Display */}
+          {(lastError || !isOnline()) && (
+            <Alert className={`${!isOnline() ? 'border-yellow-200 bg-yellow-50' : lastError?.includes('offline') ? 'border-blue-200 bg-blue-50' : 'border-red-200 bg-red-50'}`}>
+              {!isOnline() ? <WifiOff className="h-4 w-4" /> : <Wifi className="h-4 w-4" />}
+              <AlertDescription className={`${!isOnline() ? 'text-yellow-800' : lastError?.includes('offline') ? 'text-blue-800' : 'text-red-800'}`}>
+                {!isOnline() 
+                  ? 'Tidak ada koneksi internet. Jurnal akan disimpan offline.' 
+                  : lastError
+                }
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Submit Button */}
           <div className="flex gap-2 pt-4">
             <Button
@@ -205,15 +302,29 @@ export function JurnalForm({
               disabled={isSubmitting || isLoading}
               className="flex-1"
             >
+              {isSubmitting && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               {isSubmitting 
-                ? (mode === 'create' ? 'Menyimpan...' : 'Mengupdate...') 
-                : (mode === 'create' ? 'Simpan Jurnal' : 'Update Jurnal')
+                ? (
+                  submitAttempts > 0 
+                    ? `Percobaan ke-${submitAttempts}...` 
+                    : (mode === 'create' ? 'Menyimpan...' : 'Mengupdate...')
+                ) 
+                : (
+                  !isOnline() 
+                    ? 'Simpan Offline' 
+                    : (mode === 'create' ? 'Simpan Jurnal' : 'Update Jurnal')
+                )
               }
             </Button>
             <Button
               type="button"
               variant="outline"
-              onClick={() => reset()}
+              onClick={() => {
+                reset()
+                setLastError(null)
+              }}
               disabled={isSubmitting || isLoading}
             >
               Reset

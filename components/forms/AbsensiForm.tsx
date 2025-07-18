@@ -443,6 +443,7 @@ export function AbsensiForm({
     }
   }, [getValues, setValue])
 
+  // Button enabling logic (works with dynamic time settings)
   const canAbsenMasuk = useMemo(() => !lastAbsensi?.waktuMasuk, [lastAbsensi?.waktuMasuk])
   const canAbsenPulang = useMemo(() => lastAbsensi?.waktuMasuk && !lastAbsensi?.waktuPulang, [lastAbsensi?.waktuMasuk, lastAbsensi?.waktuPulang])
 

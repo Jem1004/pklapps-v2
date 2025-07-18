@@ -5,8 +5,8 @@ import { prisma } from '@/lib/prisma';
 let globalWaktuAbsensiCache: WaktuAbsensiSetting | null = null;
 let cacheExpiry: number | null = null;
 
-// Cache TTL: 5 menit (dalam milliseconds)
-const CACHE_TTL = 5 * 60 * 1000;
+// Cache TTL: 1 menit (dalam milliseconds) - optimized for real-time consistency
+const CACHE_TTL = 1 * 60 * 1000;
 
 /**
  * Mendapatkan pengaturan waktu absensi global dengan caching
@@ -45,10 +45,17 @@ export async function getCachedGlobalWaktuAbsensiSetting(): Promise<WaktuAbsensi
 
 /**
  * Invalidate global cache when settings are updated
+ * Enhanced with immediate cache cleanup and broadcast capability
  */
 export function invalidateGlobalWaktuAbsensiCache(): void {
   globalWaktuAbsensiCache = null;
   cacheExpiry = null;
+  
+  // Force immediate cache cleanup
+  cleanExpiredWaktuAbsensiCache();
+  
+  // Log cache invalidation for debugging
+  console.info('Global waktu absensi cache invalidated at:', new Date().toISOString());
 }
 
 

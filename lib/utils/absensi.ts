@@ -5,12 +5,15 @@ import { TipeAbsensi } from '@prisma/client'
 import { prisma } from '@/lib/database'
 
 /**
- * Menentukan periode absensi berdasarkan waktu saat ini
+ * Menentukan periode absensi berdasarkan waktu saat ini (DEPRECATED)
  * 
+ * @deprecated Use getCurrentPeriodDynamic instead for global settings support
  * @param currentTime - Waktu saat ini (opsional, default: new Date())
  * @returns Object dengan informasi periode absensi
  */
 export function getCurrentPeriod(currentTime: Date = new Date()): AbsensiPeriod {
+  console.warn('getCurrentPeriod is deprecated. Use getCurrentPeriodDynamic for global attendance settings support.')
+  
   const hour = currentTime.getHours()
   const minute = currentTime.getMinutes()
   const time = hour + minute / 60

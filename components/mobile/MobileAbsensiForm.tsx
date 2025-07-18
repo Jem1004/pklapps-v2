@@ -94,7 +94,7 @@ export function MobileAbsensiForm({ onSubmit, className }: MobileAbsensiFormProp
   // Validate timezone
   useEffect(() => {
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
-    setIsValidTimeZone(timezone === 'Asia/Jakarta')
+    setIsValidTimeZone(timezone === 'Asia/Makassar')
   }, [])
   
   // Update offline queue count
@@ -209,7 +209,7 @@ export function MobileAbsensiForm({ onSubmit, className }: MobileAbsensiFormProp
           <Alert className="border-yellow-200 bg-yellow-50">
             <AlertCircle className="h-4 w-4 text-yellow-600" />
             <AlertDescription className="text-yellow-800">
-              Zona waktu perangkat tidak sesuai. Pastikan menggunakan zona waktu Asia/Jakarta.
+              Zona waktu perangkat tidak sesuai. Pastikan menggunakan zona waktu Asia/Makassar.
             </AlertDescription>
           </Alert>
         )}

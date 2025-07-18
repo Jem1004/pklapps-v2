@@ -55,6 +55,7 @@ export default function AbsensiPage() {
 
   const {
     currentPeriod,
+    currentPeriodData,
     isOutsideWorkingHours,
     isLoading: isLoadingWaktu,
     error: waktuError,
@@ -135,8 +136,21 @@ export default function AbsensiPage() {
   }, [])
 
   const period = useMemo(() => {
+    // Use dynamic period data if available, fallback to string mapping for backward compatibility
+    if (currentPeriodData && !isLoadingWaktu && !waktuError) {
+      return {
+        type: currentPeriodData.type,
+        label: currentPeriodData.label,
+        color: currentPeriodData.color || 'text-gray-600',
+        bgColor: currentPeriodData.bgColor || 'bg-gray-50', 
+        borderColor: currentPeriodData.borderColor || 'border-gray-200',
+        icon: Clock
+      }
+    }
+    
+    // Fallback to old string mapping for compatibility
     return getPeriodInfo(isLoadingWaktu ? 'Memuat...' : waktuError ? 'Error' : currentPeriod)
-  }, [getPeriodInfo, isLoadingWaktu, waktuError, currentPeriod])
+  }, [currentPeriodData, getPeriodInfo, isLoadingWaktu, waktuError, currentPeriod])
 
   const PeriodIcon = period.icon
 

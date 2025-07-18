@@ -241,9 +241,20 @@ async function handlePostJurnal(request: NextRequest) {
   const { student } = await validateSessionAndGetStudent();
 
   const body = await request.json();
+  
+  // Parse date carefully to handle different formats
+  let parsedDate: Date;
+  if (body.tanggal instanceof Date) {
+    parsedDate = body.tanggal;
+  } else if (typeof body.tanggal === 'string') {
+    parsedDate = parseDate(body.tanggal);
+  } else {
+    parsedDate = new Date(body.tanggal);
+  }
+  
   const validatedData = createJurnalSchema.parse({
     ...body,
-    tanggal: new Date(body.tanggal),
+    tanggal: parsedDate,
     studentId: student.id
   });
 
@@ -290,10 +301,22 @@ async function handlePutJurnal(request: NextRequest) {
     const { student } = await validateSessionAndGetStudent();
     const targetDate = parseDate(dateParam);
 
+    // Parse date from body if present
+    let bodyDate = targetDate;
+    if (body.tanggal) {
+      if (body.tanggal instanceof Date) {
+        bodyDate = body.tanggal;
+      } else if (typeof body.tanggal === 'string') {
+        bodyDate = parseDate(body.tanggal);
+      } else {
+        bodyDate = new Date(body.tanggal);
+      }
+    }
+
     // Validasi input menggunakan updateJurnalSchema untuk konsistensi
     const validatedData = updateJurnalSchema.parse({
       ...body,
-      tanggal: targetDate,
+      tanggal: bodyDate,
       studentId: student.id
     });
 

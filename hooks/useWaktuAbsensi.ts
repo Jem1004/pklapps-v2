@@ -6,6 +6,15 @@ import type { WaktuAbsensiSetting } from '@/types/features/waktuAbsensi'
 
 interface UseWaktuAbsensiReturn {
   currentPeriod: string
+  currentPeriodData: {
+    type: 'MASUK' | 'PULANG' | 'TUTUP'
+    label: string
+    timeRange?: string
+    color?: string
+    bgColor?: string
+    borderColor?: string
+    isCustom?: boolean
+  } | null
   isOutsideWorkingHours: boolean
   waktuAbsensiSetting: WaktuAbsensiSetting | null
   isLoading: boolean
@@ -23,6 +32,15 @@ export function useWaktuAbsensi(): UseWaktuAbsensiReturn {
   
   // State management
   const [currentPeriod, setCurrentPeriod] = useState<string>('Belum Dimulai')
+  const [currentPeriodData, setCurrentPeriodData] = useState<{
+    type: 'MASUK' | 'PULANG' | 'TUTUP'
+    label: string
+    timeRange?: string
+    color?: string
+    bgColor?: string
+    borderColor?: string
+    isCustom?: boolean
+  } | null>(null)
   const [isOutsideWorkingHours, setIsOutsideWorkingHours] = useState<boolean>(false)
   const [waktuAbsensiSetting, setWaktuAbsensiSetting] = useState<WaktuAbsensiSetting | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
@@ -47,8 +65,11 @@ export function useWaktuAbsensi(): UseWaktuAbsensiReturn {
         const result = await response.json()
         const data = result.data
         
-        // Set current period
+        // Set current period (keep backward compatibility)
         setCurrentPeriod(data.currentPeriod?.label || 'Belum Dimulai')
+        
+        // Set complete period data for accurate type checking
+        setCurrentPeriodData(data.currentPeriod || null)
         
         // Set outside working hours status (use MASUK as default)
         setIsOutsideWorkingHours(data.isOutsideWorkingHours?.masuk || false)
@@ -65,6 +86,7 @@ export function useWaktuAbsensi(): UseWaktuAbsensiReturn {
       
       // Fallback ke periode default
       setCurrentPeriod('Belum Dimulai')
+      setCurrentPeriodData(null)
       setIsOutsideWorkingHours(false)
     } finally {
       setIsLoading(false)
@@ -99,8 +121,11 @@ export function useWaktuAbsensi(): UseWaktuAbsensiReturn {
           const result = await response.json()
           const data = result.data
           
-          // Set current period
+          // Set current period (keep backward compatibility)
           setCurrentPeriod(data.currentPeriod?.label || 'Belum Dimulai')
+          
+          // Set complete period data for accurate type checking
+          setCurrentPeriodData(data.currentPeriod || null)
           
           // Set outside working hours status (use MASUK as default)
           setIsOutsideWorkingHours(data.isOutsideWorkingHours?.masuk || false)
@@ -108,13 +133,14 @@ export function useWaktuAbsensi(): UseWaktuAbsensiReturn {
       } catch (error) {
         console.error('Error updating waktu absensi:', error)
       }
-    }, 60000) // Update setiap 1 menit
+    }, 30000) // Update setiap 30 detik untuk better consistency
 
     return () => clearInterval(interval)
   }, [session?.user?.id, session?.user?.role])
 
   return {
     currentPeriod,
+    currentPeriodData,
     isOutsideWorkingHours,
     waktuAbsensiSetting,
     isLoading,
