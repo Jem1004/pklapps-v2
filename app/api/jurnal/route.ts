@@ -341,11 +341,10 @@ async function handlePutJurnal(request: NextRequest) {
       .union([
         z.string().url('Format URL tidak valid').max(500, 'URL dokumentasi terlalu panjang'),
         z.literal(''),
-        z.null(),
-        z.undefined()
+        z.null()
       ])
       .optional()
-      .transform(val => val === '' || val === null || val === undefined ? null : val),
+      .transform(val => val === '' || val === null ? null : val),
   });
 
   const validatedUpdates = z.array(updateSchema).parse(body.map(item => ({
