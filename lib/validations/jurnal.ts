@@ -20,10 +20,14 @@ export const createJurnalSchema = z.object({
     .max(500, 'Keterangan must be less than 500 characters')
     .optional(),
   dokumentasi: z
-    .string()
-    .url('Format URL tidak valid')
-    .max(500, 'URL dokumentasi terlalu panjang')
-    .optional(),
+    .union([
+      z.string().url('Format URL tidak valid').max(500, 'URL dokumentasi terlalu panjang'),
+      z.literal(''),
+      z.null(),
+      z.undefined()
+    ])
+    .optional()
+    .transform(val => val === '' || val === null || val === undefined ? null : val),
   studentId: z
     .string()
     .min(1, 'Student ID is required'),
@@ -49,10 +53,14 @@ export const updateJurnalSchema = z.object({
     .max(500, 'Keterangan must be less than 500 characters')
     .optional(),
   dokumentasi: z
-    .string()
-    .url('Format URL tidak valid')
-    .max(500, 'URL dokumentasi terlalu panjang')
-    .optional(),
+    .union([
+      z.string().url('Format URL tidak valid').max(500, 'URL dokumentasi terlalu panjang'),
+      z.literal(''),
+      z.null(),
+      z.undefined()
+    ])
+    .optional()
+    .transform(val => val === '' || val === null || val === undefined ? null : val),
 });
 
 // Jurnal filter validation schema

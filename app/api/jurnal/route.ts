@@ -108,7 +108,10 @@ function parseDate(dateString: string): Date {
     throw ApiResponseHelper.validationError({ message: 'Format tanggal harus YYYY-MM-DD' });
   }
 
-  const date = new Date(dateString + 'T00:00:00.000Z');
+  // Use local timezone instead of UTC to avoid date shifting issues
+  const [year, month, day] = dateString.split('-').map(Number);
+  const date = new Date(year, month - 1, day); // month is 0-indexed
+  
   if (isNaN(date.getTime())) {
     throw ApiResponseHelper.validationError({ message: 'Tanggal tidak valid' });
   }
@@ -334,7 +337,15 @@ async function handlePutJurnal(request: NextRequest) {
     tanggal: z.date().optional(),
     kegiatan: z.string().min(10).max(1000).optional(),
     keterangan: z.string().max(500).optional(),
-    dokumentasi: z.string().url('Dokumentasi harus berupa URL yang valid').max(500, 'Dokumentasi maksimal 500 karakter').optional().nullable(),
+    dokumentasi: z
+      .union([
+        z.string().url('Format URL tidak valid').max(500, 'URL dokumentasi terlalu panjang'),
+        z.literal(''),
+        z.null(),
+        z.undefined()
+      ])
+      .optional()
+      .transform(val => val === '' || val === null || val === undefined ? null : val),
   });
 
   const validatedUpdates = z.array(updateSchema).parse(body.map(item => ({
