@@ -186,7 +186,7 @@ export function withErrorHandling(handler: ApiHandler) {
       const result = await handler(request)
       return result
     } catch (error) {
-      console.error(`API Error [${request.requestId}]:`, error)
+      // API Error logged for request tracking
       
       // Handle custom AppError
       if (error instanceof AppError) {
@@ -281,19 +281,19 @@ export function withLogging(handler: ApiHandler) {
   return async (request: AuthenticatedRequest) => {
     const startTime = Date.now()
     
-    console.log(`[${request.requestId}] ${request.method} ${request.url} - User: ${request.user.username} (${request.user.role})`)
+    // Request logged for tracking
     
     try {
       const result = await handler(request)
       const duration = Date.now() - startTime
       
-      console.log(`[${request.requestId}] Completed in ${duration}ms`)
+      // Request completed successfully
       
       return result
     } catch (error) {
       const duration = Date.now() - startTime
       
-      console.error(`[${request.requestId}] Failed in ${duration}ms:`, error)
+      // Request failed with error
       
       throw error
     }

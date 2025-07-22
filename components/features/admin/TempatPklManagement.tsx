@@ -57,15 +57,15 @@ export default function TempatPklManagement() {
         if (result.success) {
           setTempatPkl(result.data || [])
         } else {
-          console.error('Error fetching tempat PKL:', result.message)
+          // Error is handled by setting empty array
           setTempatPkl([]) // Set empty array on error
         }
       } else {
-        console.error('Error fetching tempat PKL:', result.error || result.message)
+        // Error is handled by setting empty array
         setTempatPkl([]) // Set empty array on error
       }
     } catch (error) {
-      console.error('Error fetching tempat PKL:', error)
+      // Error is handled by setting empty array
       setTempatPkl([]) // Set empty array on error
     } finally {
       setIsLoading(false)
@@ -98,7 +98,7 @@ export default function TempatPklManagement() {
         alert(result.error || 'Terjadi kesalahan')
       }
     } catch (error) {
-      console.error('Error saving tempat PKL:', error)
+      // Error is handled by showing alert to user
       alert('Terjadi kesalahan saat menyimpan tempat PKL')
     }
   }
@@ -128,7 +128,7 @@ export default function TempatPklManagement() {
         alert(result.error || 'Terjadi kesalahan saat menghapus tempat PKL')
       }
     } catch (error) {
-      console.error('Error deleting tempat PKL:', error)
+      // Error is handled by showing alert to user
       alert('Terjadi kesalahan saat menghapus tempat PKL')
     }
   }

@@ -70,7 +70,7 @@ export default function WaktuAbsensiForm({
     try {
       // Validate that we have a valid ID for edit mode
       if (initialData && !initialData.id) {
-        console.error('Invalid initialData for edit mode:', initialData);
+        // Invalid data for edit mode
         throw new Error('ID pengaturan tidak valid untuk mode edit');
       }
 
@@ -83,7 +83,7 @@ export default function WaktuAbsensiForm({
         ? { ...data, version: initialData.version }
         : data;
 
-      console.log('Submitting data:', { url, method, body });
+      // Submitting data to API
 
       const response = await fetch(url, {
         method,
@@ -94,7 +94,7 @@ export default function WaktuAbsensiForm({
       });
 
       const result = await response.json();
-      console.log('Submit response:', { status: response.status, result });
+      // Processing API response
 
       if (!response.ok) {
         throw new Error(result.error || 'Gagal menyimpan pengaturan');
@@ -103,7 +103,7 @@ export default function WaktuAbsensiForm({
       // Success callback with updated data
       onSuccess?.(result.data);
     } catch (err) {
-      console.error('Form submission error:', err);
+      // Error is handled by setting error state
       setError(err instanceof Error ? err.message : 'Terjadi kesalahan');
     } finally {
       setIsLoading(false);

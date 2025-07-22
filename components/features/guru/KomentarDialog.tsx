@@ -90,7 +90,7 @@ export default function KomentarDialog({ jurnal, isOpen, onClose, onSuccess }: K
         alert(result.error || 'Terjadi kesalahan')
       }
     } catch (error) {
-      console.error('Error submitting comment:', error)
+      // Handle error silently, user already gets alert
       alert('Terjadi kesalahan saat menyimpan komentar')
     } finally {
       setIsLoading(false)

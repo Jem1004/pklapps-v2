@@ -94,17 +94,17 @@ export default function ImportUsers() {
             setImportResult(result)
           } else {
             alert(result.error || 'Terjadi kesalahan saat import')
-            console.error('Import error details:', result.details)
+            // Import error details are handled by alert
           }
         },
         error: (error) => {
-          console.error('CSV parsing error:', error)
+          // CSV parsing error is handled by alert
           alert('Error parsing CSV file')
           setIsUploading(false)
         }
       })
     } catch (error) {
-      console.error('Upload error:', error)
+      // Upload error is handled by alert
       alert('Terjadi kesalahan saat upload')
     } finally {
       setIsUploading(false)

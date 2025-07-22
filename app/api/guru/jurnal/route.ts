@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { transformJurnalsForAPI } from '@/lib/utils/dateSerializer'
 
 export async function GET(request: NextRequest) {
   try {
@@ -61,13 +62,16 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    // Transform jurnal data to ensure proper date serialization
+    const transformedJurnals = transformJurnalsForAPI(jurnals);
+    
     return NextResponse.json({
       message: 'Journals retrieved successfully',
-      data: jurnals
+      data: transformedJurnals
     })
 
   } catch (error) {
-    console.error('Error fetching journals:', error)
+    // Error is handled by returning error response
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

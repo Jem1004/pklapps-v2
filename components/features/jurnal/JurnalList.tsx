@@ -111,10 +111,10 @@ export default function JurnalList() {
           setPagination(result.pagination)
         }
       } else {
-        console.error('Error fetching jurnals:', result.error)
+        // Handle fetch error silently
       }
     } catch (error) {
-      console.error('Error fetching jurnals:', error)
+      // Handle fetch error silently
     } finally {
       setIsLoading(false)
       setIsLoadingMore(false)
@@ -163,7 +163,7 @@ export default function JurnalList() {
       })
     },
     onAfterPrint: () => {
-      console.log('PDF export completed')
+      // PDF export completed
     },
     pageStyle: `
       @page {
@@ -194,10 +194,10 @@ export default function JurnalList() {
         if (response.ok) {
           fetchJurnals();
         } else {
-          console.error('Failed to delete journal:', result.error);
+          // Handle delete error silently
         }
       } catch (error) {
-        console.error('Error deleting journal:', error);
+        // Handle delete error silently
       }
     }
   };
@@ -207,8 +207,18 @@ export default function JurnalList() {
   }
 
   const formatTanggal = (dateString: string) => {
-    const date = new Date(dateString)
-    return formatDate(date)
+    // Parse date as local date to prevent timezone shifting
+    // dateString is now in YYYY-MM-DD format from API
+    if (dateString.includes('T')) {
+      // Handle old ISO format for backward compatibility
+      const date = new Date(dateString)
+      return formatDate(date)
+    } else {
+      // Handle new YYYY-MM-DD format
+      const [year, month, day] = dateString.split('-').map(Number)
+      const date = new Date(year, month - 1, day) // month is 0-indexed
+      return formatDate(date)
+    }
   }
 
   const clearFilter = () => {

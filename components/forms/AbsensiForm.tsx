@@ -107,8 +107,7 @@ export function AbsensiForm({
         
         setFormState(prev => ({ ...prev, timezoneValid: isValid }))
       } catch (error) {
-        console.warn('Failed to validate timezone:', error)
-        // Assume valid if we can't check
+        // Failed to validate timezone, assume valid if we can't check
         setFormState(prev => ({ ...prev, timezoneValid: true }))
       }
     }
@@ -248,7 +247,7 @@ export function AbsensiForm({
       toast.error(userMessage)
       onSubmitError?.(userMessage)
       
-      console.error('Error submitting absensi:', attendanceError)
+      // Error already logged by AttendanceErrorLogger
     } finally {
       setFormState(prev => ({ ...prev, isSubmitting: false }))
     }
@@ -327,7 +326,7 @@ export function AbsensiForm({
         toast.error(`${result.failedCount} absensi gagal disinkronkan`)
       }
     } catch (error) {
-      console.error('Sync failed:', error)
+      // Sync failure is handled by showing toast message
     }
   }, [isOnline])
   

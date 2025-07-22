@@ -171,7 +171,7 @@ class ErrorLoggerService {
       
       localStorage.setItem('app_error_logs', JSON.stringify(updatedLogs));
     } catch (error) {
-      console.warn('Failed to save log to localStorage:', error);
+      // Silently fail localStorage operations
     }
   }
 
@@ -197,7 +197,7 @@ class ErrorLoggerService {
         throw new Error(`Remote logging failed: ${response.status}`);
       }
     } catch (error) {
-      console.warn('Failed to send log to remote endpoint:', error);
+      // Queue for retry when connection is restored
       this.queueLogEntry(logEntry);
     }
   }
@@ -249,7 +249,7 @@ class ErrorLoggerService {
     try {
       localStorage.removeItem('app_error_logs');
     } catch (error) {
-      console.warn('Failed to clear logs from localStorage:', error);
+      // Failed to clear logs from localStorage, error handled silently
     }
   }
 

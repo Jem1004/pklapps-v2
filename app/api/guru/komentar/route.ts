@@ -112,7 +112,7 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    console.error('Error in komentar API:', error)
+    // Error is handled by returning error response
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

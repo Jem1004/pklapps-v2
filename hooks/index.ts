@@ -12,7 +12,3 @@ export {
   type UseErrorHandlingOptions,
   type UseErrorHandlingReturn
 } from './useErrorHandling';
-
-// TODO: Add more custom hooks as needed
-// export { useAbsensi } from './useAbsensi';
-// export { useJurnal } from './useJurnal';

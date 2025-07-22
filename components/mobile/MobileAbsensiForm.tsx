@@ -121,7 +121,7 @@ export function MobileAbsensiForm({ onSubmit, className }: MobileAbsensiFormProp
       
       await onSubmit(formattedData)
     } catch (error) {
-      console.error('Error submitting absensi:', error)
+      // Error is handled by onSubmit callback
     } finally {
       setIsSubmitting(false)
     }

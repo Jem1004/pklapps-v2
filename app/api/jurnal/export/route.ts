@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { transformJurnalsForAPI } from '@/lib/utils/dateSerializer'
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,8 +45,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 })
     }
 
+    // Transform jurnal data to ensure proper date serialization
+    const transformedStudent = {
+      ...student,
+      jurnals: transformJurnalsForAPI(student.jurnals)
+    }
+    
     // Generate HTML content for PDF
-    const htmlContent = generateHTMLContent(student)
+    const htmlContent = generateHTMLContent(transformedStudent)
     
     // Return HTML content that will be converted to PDF on client side
     return NextResponse.json({ 
@@ -188,7 +195,17 @@ function generateHTMLContent(student: any): string {
   
   // Add journal entries
   student.jurnals.forEach((jurnal: any, index: number) => {
-    const jurnalDate = new Date(jurnal.tanggal).toLocaleDateString('id-ID')
+    // Handle new YYYY-MM-DD format from transformed data
+    let jurnalDate: string
+    if (jurnal.tanggal.includes('T')) {
+      // Handle old ISO format for backward compatibility
+      jurnalDate = new Date(jurnal.tanggal).toLocaleDateString('id-ID')
+    } else {
+      // Handle new YYYY-MM-DD format
+      const [year, month, day] = jurnal.tanggal.split('-').map(Number)
+      const date = new Date(year, month - 1, day) // month is 0-indexed
+      jurnalDate = date.toLocaleDateString('id-ID')
+    }
     
     html += `
       <div class="journal-entry">

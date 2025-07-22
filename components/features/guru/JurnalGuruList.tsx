@@ -57,10 +57,10 @@ export default function JurnalGuruList() {
       if (response.ok) {
         setJurnals(result.data || [])
       } else {
-        console.error('Error fetching jurnals:', result.error)
+        // Handle fetch error silently
       }
     } catch (error) {
-      console.error('Error fetching jurnals:', error)
+      // Handle fetch error silently
     } finally {
       setIsLoading(false)
     }
@@ -86,8 +86,18 @@ export default function JurnalGuruList() {
   })
 
   const formatTanggal = (dateString: string) => {
-    const date = new Date(dateString)
-    return formatDate(date)
+    // Parse date as local date to prevent timezone shifting
+    // dateString is now in YYYY-MM-DD format from API
+    if (dateString.includes('T')) {
+      // Handle old ISO format for backward compatibility
+      const date = new Date(dateString)
+      return formatDate(date)
+    } else {
+      // Handle new YYYY-MM-DD format
+      const [year, month, day] = dateString.split('-').map(Number)
+      const date = new Date(year, month - 1, day) // month is 0-indexed
+      return formatDate(date)
+    }
   }
 
   if (isLoading) {

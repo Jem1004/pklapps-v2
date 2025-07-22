@@ -98,7 +98,6 @@ export default function StudentMapping() {
         setTempatPkl(locationsData.data || [])
       }
     } catch (error) {
-      console.error('Error fetching data:', error)
       // Set empty arrays on error to prevent map function errors
       setStudents([])
       setTeachers([])
@@ -109,11 +108,7 @@ export default function StudentMapping() {
   }
 
   const handleMapping = async (data: StudentMappingFormData) => {
-    console.log('handleMapping called with data:', data)
-    console.log('Selected student:', selectedStudent)
-    
     if (!selectedStudent) {
-      console.log('No student selected, returning')
       return
     }
 
@@ -124,8 +119,6 @@ export default function StudentMapping() {
         teacherId: data.teacherId === "none" ? null : data.teacherId,
       }
       
-      console.log('Sending request with data:', requestData)
-      
       const response = await fetch('/api/admin/student-mapping', {
         method: 'POST',
         headers: {
@@ -134,23 +127,15 @@ export default function StudentMapping() {
         body: JSON.stringify(requestData)
       })
 
-      console.log('Response received:', { status: response.status, ok: response.ok })
-
       if (response.ok) {
-        const result = await response.json()
-        console.log('Mapping successful:', result)
-        console.log('Refreshing data...')
         await fetchData()
         setIsDialogOpen(false)
         setSelectedStudent(null)
-        console.log('Dialog closed and student cleared')
       } else {
         const errorData = await response.json()
-        console.error('Mapping failed:', errorData)
         alert(`Error: ${errorData.error || 'Failed to save mapping'}`)
       }
     } catch (error) {
-      console.error('Error in handleMapping:', error)
       alert('Terjadi kesalahan saat menyimpan mapping')
     }
   }

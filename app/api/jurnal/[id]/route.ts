@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { ApiResponseHelper, handleApiError } from '@/lib/api/response'
 import { authOptions } from '@/lib/auth/auth'
 import { prisma } from '@/lib/database/config'
+import { transformJurnalForAPI } from '@/lib/utils/dateSerializer'
 
 // Validation schemas
 const updateJurnalSchema = z.object({
@@ -95,7 +96,9 @@ async function handleGetJurnal(
     return ApiResponseHelper.notFound('Jurnal tidak ditemukan atau Anda tidak memiliki akses');
   }
 
-  return ApiResponseHelper.success(jurnal, 'Jurnal berhasil ditemukan');
+  // Transform jurnal data to ensure proper date serialization
+  const transformedJurnal = transformJurnalForAPI(jurnal);
+  return ApiResponseHelper.success(transformedJurnal, 'Jurnal berhasil ditemukan');
 }
 
 export async function GET(
@@ -143,7 +146,9 @@ async function handlePutJurnal(
     include: jurnalInclude,
   });
 
-  return ApiResponseHelper.success(updatedJurnal, 'Jurnal berhasil diperbarui');
+  // Transform jurnal data to ensure proper date serialization
+  const transformedJurnal = transformJurnalForAPI(updatedJurnal);
+  return ApiResponseHelper.success(transformedJurnal, 'Jurnal berhasil diperbarui');
 }
 
 export async function PUT(

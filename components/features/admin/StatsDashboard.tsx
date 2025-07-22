@@ -68,7 +68,7 @@ export default function StatsDashboard({ className }: StatsDashboardProps) {
         throw new Error(result.error?.message || 'Failed to load attendance stats')
       }
     } catch (error) {
-      console.error('Error loading attendance stats:', error)
+      // Error is handled by setting error state and showing toast
       const errorMessage = error instanceof Error ? error.message : 'Gagal memuat statistik absensi'
       setError(errorMessage)
       toast.error('Gagal memuat statistik absensi')

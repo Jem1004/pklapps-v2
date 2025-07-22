@@ -24,7 +24,7 @@ export class PWAErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('PWA Error Boundary caught an error:', error, errorInfo)
+    // Error is logged to session storage for debugging
     
     // Log to session storage for debugging
     if (typeof window !== 'undefined') {

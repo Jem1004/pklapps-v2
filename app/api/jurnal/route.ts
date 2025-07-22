@@ -2,11 +2,11 @@ import { NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { z } from 'zod';
 
-// Internal imports
 import { ApiResponseHelper, handleApiError, parseQueryParams } from '@/lib/api/response';
 import { createJurnalSchema, updateJurnalSchema, jurnalFilterSchema } from '@/lib/validations/jurnal';
 import { prisma, validatePaginationOptions, calculateOffset, calculateTotalPages } from '@/lib/database/config';
 import { authOptions } from '@/lib/auth/auth';
+import { parseDateInServerTimezone, transformJurnalForAPI, transformJurnalsForAPI } from '@/lib/utils/dateSerializer';
 
 // Helper function for session and student validation
 async function validateSessionAndGetStudent(allowedRoles: string[] = ['STUDENT']) {
@@ -102,21 +102,15 @@ interface JurnalWithRelations {
 
 // Helper function to validate and parse date
 function parseDate(dateString: string): Date {
-  // Validate date format (YYYY-MM-DD)
-  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-  if (!dateRegex.test(dateString)) {
-    throw ApiResponseHelper.validationError({ message: 'Format tanggal harus YYYY-MM-DD' });
-  }
-
-  // Use local timezone instead of UTC to avoid date shifting issues
-  const [year, month, day] = dateString.split('-').map(Number);
-  const date = new Date(year, month - 1, day); // month is 0-indexed
-  
-  if (isNaN(date.getTime())) {
+  try {
+    return parseDateInServerTimezone(dateString);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Tanggal tidak valid';
+    if (errorMessage.includes('Invalid date format')) {
+      throw ApiResponseHelper.validationError({ message: 'Format tanggal harus YYYY-MM-DD' });
+    }
     throw ApiResponseHelper.validationError({ message: 'Tanggal tidak valid' });
   }
-
-  return date;
 }
 
 /**
@@ -146,7 +140,9 @@ async function handleGetJurnal(request: NextRequest) {
       return ApiResponseHelper.notFound('Jurnal untuk tanggal ini tidak ditemukan');
     }
 
-    return ApiResponseHelper.success(jurnal, 'Jurnal berhasil ditemukan');
+    // Transform jurnal data to ensure proper date serialization
+    const transformedJurnal = transformJurnalForAPI(jurnal);
+    return ApiResponseHelper.success(transformedJurnal, 'Jurnal berhasil ditemukan');
   }
 
   // Validasi session dan dapatkan student yang login
@@ -222,7 +218,9 @@ async function handleGetJurnal(request: NextRequest) {
     hasPrev: validatedPagination.page > 1,
   };
 
-  return ApiResponseHelper.paginated(jurnals, paginationMeta, 'Daftar jurnal berhasil diambil');
+  // Transform jurnals data to ensure proper date serialization
+  const transformedJurnals = transformJurnalsForAPI(jurnals);
+  return ApiResponseHelper.paginated(transformedJurnals, paginationMeta, 'Daftar jurnal berhasil diambil');
 }
 
 export async function GET(request: NextRequest) {
@@ -276,7 +274,9 @@ async function handlePostJurnal(request: NextRequest) {
     include: jurnalInclude,
   });
 
-  return ApiResponseHelper.success(newJurnal, 'Jurnal berhasil dibuat', 201);
+  // Transform jurnal data to ensure proper date serialization
+  const transformedJurnal = transformJurnalForAPI(newJurnal);
+  return ApiResponseHelper.success(transformedJurnal, 'Jurnal berhasil dibuat', 201);
 }
 
 export async function POST(request: NextRequest) {
@@ -347,7 +347,9 @@ async function handlePutJurnal(request: NextRequest) {
       include: jurnalInclude,
     });
 
-    return ApiResponseHelper.success(updatedJurnal, 'Jurnal berhasil diperbarui');
+    // Transform jurnal data to ensure proper date serialization
+    const transformedJurnal = transformJurnalForAPI(updatedJurnal);
+    return ApiResponseHelper.success(transformedJurnal, 'Jurnal berhasil diperbarui');
   }
 
   // Logika existing untuk batch update
@@ -385,7 +387,9 @@ async function handlePutJurnal(request: NextRequest) {
     )
   );
 
-  return ApiResponseHelper.success(updatedJurnals, `${updatedJurnals.length} jurnal berhasil diperbarui`);
+  // Transform jurnals data to ensure proper date serialization
+  const transformedJurnals = transformJurnalsForAPI(updatedJurnals);
+  return ApiResponseHelper.success(transformedJurnals, `${updatedJurnals.length} jurnal berhasil diperbarui`);
 }
 
 export async function PUT(request: NextRequest) {

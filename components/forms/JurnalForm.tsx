@@ -97,7 +97,7 @@ export function JurnalForm({
           return // Exit on success
           
         } catch (error) {
-          console.warn(`Submission attempt ${attempt} failed:`, error)
+          // Submission attempt failed, will retry
           
           // If this is the last attempt or device is offline, handle differently
           if (attempt === maxRetries || !isOnline()) {
@@ -110,7 +110,7 @@ export function JurnalForm({
       }
       
     } catch (error) {
-      console.error('All submission attempts failed:', error)
+      // All submission attempts failed
       
       // Store offline if device is offline and mode is create
       if (!isOnline() && mode === 'create') {

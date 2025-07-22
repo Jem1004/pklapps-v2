@@ -40,7 +40,7 @@ export async function GET() {
 
     return NextResponse.json({ data: users })
   } catch (error) {
-    console.error('Error fetching users:', error)
+    // Error is handled by returning error response
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ data: user })
   } catch (error) {
-    console.error('Error creating user:', error)
+    // Error is handled by returning appropriate error response
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Data tidak valid', details: error.errors },

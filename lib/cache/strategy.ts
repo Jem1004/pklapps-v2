@@ -297,11 +297,12 @@ export const cacheMonitoring = {
   
   logStats() {
     const stats = globalCache.getStats()
-    console.log('Cache Stats:', {
+    // Cache stats are available for monitoring
+    return {
       size: stats.size,
       maxSize: stats.maxSize,
       usage: `${((stats.size / stats.maxSize) * 100).toFixed(1)}%`
-    })
+    }
   }
 }
 

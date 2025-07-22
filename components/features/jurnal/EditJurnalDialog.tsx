@@ -52,7 +52,7 @@ export default function EditJurnalDialog({ jurnal, isOpen, onClose, onSuccess }:
         alert(result.error || 'Terjadi kesalahan')
       }
     } catch (error) {
-      console.error('Error updating jurnal:', error)
+      // Handle error silently, user already gets alert
       alert('Terjadi kesalahan saat memperbarui jurnal')
     } finally {
       setIsLoading(false)

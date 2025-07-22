@@ -69,8 +69,7 @@ export function WaktuAbsensiList({
 }: WaktuAbsensiListProps) {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   
-  // Debug logging
-  console.log('WaktuAbsensiList received globalSetting:', globalSetting);
+  // Component received globalSetting prop
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; setting: WaktuAbsensiSetting | null }>({ open: false, setting: null });
   const [deleting, setDeleting] = useState(false);
 
@@ -95,7 +94,7 @@ export function WaktuAbsensiList({
       await onDelete(deleteDialog.setting.id);
       setDeleteDialog({ open: false, setting: null });
     } catch (err) {
-      console.error('Failed to delete setting:', err);
+      // Error is handled by UI state
     } finally {
       setDeleting(false);
     }
@@ -289,7 +288,7 @@ export function WaktuAbsensiList({
                                 if (globalSetting?.id) {
                                   onEdit?.(globalSetting);
                                 } else {
-                                  console.error('Cannot edit setting without valid ID');
+                                  // Cannot edit setting without valid ID
                                 }
                               }}
                               disabled={!globalSetting?.id}

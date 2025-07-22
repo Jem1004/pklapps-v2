@@ -74,7 +74,6 @@ export default function DashboardJurnalPage() {
           setFormData({ kegiatan: "", dokumentasi: "" })
         }
       } catch (error) {
-        console.error('Error loading jurnal:', error)
         setJurnal(null)
         setFormData({ kegiatan: "", dokumentasi: "" })
       } finally {
@@ -177,7 +176,7 @@ export default function DashboardJurnalPage() {
         }
       }
     } catch (error) {
-      console.error('Error saving jurnal:', error)
+      // Error saving jurnal, handled by toast message
       toast.error('Terjadi kesalahan saat menyimpan jurnal')
     } finally {
       setIsLoading(false)
@@ -213,7 +212,7 @@ export default function DashboardJurnalPage() {
         toast.error(data.message || 'Gagal menghapus jurnal')
       }
     } catch (error) {
-      console.error('Error deleting jurnal:', error)
+      // Error deleting jurnal, handled by toast message
       toast.error('Terjadi kesalahan saat menghapus jurnal')
     } finally {
       setDeleteLoading(false)

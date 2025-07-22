@@ -57,11 +57,11 @@ export default function WaktuAbsensiManager() {
           lastUpdated: globalSettingData?.updatedAt ? new Date(globalSettingData.updatedAt) : undefined
         })
       } else {
-        console.error('API response not successful:', settingsResult)
+        // API response not successful, error handled by throwing exception
         throw new Error('Gagal memuat data')
       }
     } catch (error) {
-      console.error('Error loading data:', error)
+      // Error is handled by setting error state and showing toast
       setError(error instanceof Error ? error.message : 'Terjadi kesalahan')
       toast.error('Gagal memuat data waktu absensi')
     } finally {

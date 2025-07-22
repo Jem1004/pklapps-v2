@@ -24,7 +24,6 @@ export function detectClientTimezone(): string {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone
   } catch (error) {
-    console.warn('Failed to detect timezone, falling back to UTC:', error)
     return 'UTC'
   }
 }
@@ -52,7 +51,6 @@ export function convertToServerTime(clientTime: Date, config: TimezoneConfig): D
     
     return serverTime
   } catch (error) {
-    console.error('Failed to convert to server time:', error)
     return clientTime // Fallback to original time
   }
 }
@@ -71,7 +69,6 @@ export function convertToClientTime(serverTime: Date, config: TimezoneConfig): D
     
     return clientTime
   } catch (error) {
-    console.error('Failed to convert to client time:', error)
     return serverTime // Fallback to original time
   }
 }
@@ -93,7 +90,6 @@ export function validateTimezoneConsistency(
     
     return clientDate !== 'Invalid Date' && serverDate !== 'Invalid Date'
   } catch (error) {
-    console.error('Timezone validation failed:', error)
     return false
   }
 }
@@ -179,7 +175,6 @@ export function formatDateForDatabase(date: Date, timezone?: string): string {
     
     return date.toISOString()
   } catch (error) {
-    console.error('Failed to format date for database:', error)
     return date.toISOString() // Fallback to original ISO string
   }
 }
@@ -197,7 +192,7 @@ export async function getCurrentServerTime(): Promise<Date> {
       return new Date(data.timestamp)
     }
   } catch (error) {
-    console.warn('Failed to fetch server time from API, using fallback:', error)
+    // Fallback to local time calculation
   }
   
   // Fallback: use current time with server timezone
@@ -239,7 +234,6 @@ export async function syncServerTime(clientTime: Date, clientTimezone: string): 
       timeDifference
     }
   } catch (error) {
-    console.error('Failed to sync server time:', error)
     return {
       serverTime: new Date(),
       isValid: false,
@@ -264,7 +258,6 @@ export async function isWithinAttendanceHours(
     
     return hour >= attendanceHours.start && hour <= attendanceHours.end
   } catch (error) {
-    console.error('Failed to check attendance hours:', error)
     return false
   }
 }

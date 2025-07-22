@@ -42,10 +42,10 @@ export default function StudentBimbinganList() {
         setStudents(result.data || [])
         setFilteredStudents(result.data || [])
       } else {
-        console.error('Error fetching students:', result.error)
+        // Error fetching students, handled silently
       }
     } catch (error) {
-      console.error('Error fetching students:', error)
+      // Error fetching students, handled silently
     } finally {
       setIsLoading(false)
     }

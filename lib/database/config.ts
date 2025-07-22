@@ -245,9 +245,9 @@ export const batchOperations = {
 export async function databaseCleanup(): Promise<void> {
   try {
     await prisma.$disconnect()
-    console.log('Database connection closed successfully')
+    // Database connection closed successfully
   } catch (error) {
-    console.error('Error during database cleanup:', error)
+    // Error during database cleanup is handled silently
   }
 }
 

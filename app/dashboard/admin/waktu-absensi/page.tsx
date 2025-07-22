@@ -26,26 +26,26 @@ export default function WaktuAbsensiPage() {
       const response = await fetch(`/api/admin/waktu-absensi?t=${Date.now()}`);
       const result = await response.json();
       
-      console.log('API Response:', { response: response.ok, result });
+      // API response received
       
       if (response.ok) {
         // API now returns array directly in result.data
         const settings = result.data;
         const setting = Array.isArray(settings) ? settings[0] : settings;
-        console.log('Setting data:', setting);
+        // Setting data processed
         
         // Validate setting has required fields
         if (setting && !setting.id) {
-          console.warn('Setting received without ID:', setting);
+          // Setting received without ID
         }
         
         setGlobalSetting(setting || null);
       } else {
-        console.error('API Error:', result);
+        // API error handled by setting error state
         setError(result.error || 'Gagal memuat pengaturan');
       }
     } catch (err) {
-      console.error('Failed to fetch global setting:', err);
+      // Failed to fetch global setting, error handled by setting error state
       setError('Gagal memuat pengaturan waktu absensi');
     }
   };

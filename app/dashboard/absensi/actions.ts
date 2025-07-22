@@ -30,7 +30,7 @@ async function isOutsideWorkingHours(waktu: Date, tipe: TipeAbsensi): Promise<bo
   try {
     return await isOutsideWorkingHoursDynamic(waktu, tipe);
   } catch (error) {
-    console.error('Error checking working hours dynamically, using fallback:', error);
+    // Error checking working hours dynamically, using fallback
     
     // Fallback ke waktu default jika terjadi error
     const hour = waktu.getHours();

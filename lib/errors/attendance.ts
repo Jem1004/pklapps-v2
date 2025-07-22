@@ -369,7 +369,7 @@ export class AttendanceErrorLogger {
     
     // Log to console in development
     if (process.env.NODE_ENV === 'development') {
-      console.error('Attendance Error:', logEntry)
+      // Attendance error logged for development debugging
     }
     
     // Send to monitoring service in production

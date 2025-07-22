@@ -68,7 +68,7 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@types/react-pdf": "^5.0.7",
-    "@vitest/ui": "^1.6.1",
+    "@vitest/ui": "^3.2.4",
     "autoprefixer": "^10.4.21",
     "eslint": "^8",
     "eslint-config-next": "14.0.4",
@@ -79,6 +79,6 @@
     "ts-node": "^10.9.2",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3",
-    "vitest": "^1.6.1"
+    "vitest": "^3.2.4"
   }
 }

@@ -83,7 +83,7 @@ export function ExportPinExcel() {
       setClasses(uniqueClasses as string[])
       setJurusans(uniqueJurusans as string[])
     } catch (error) {
-      console.error('Error fetching students:', error)
+      // Error is handled by showing toast message
       toast.error('Gagal memuat data siswa')
     } finally {
       setLoading(false)
@@ -166,7 +166,7 @@ export function ExportPinExcel() {
 
       toast.success(`Berhasil mengekspor data ${selectedStudents.length} siswa ke Excel`)
     } catch (error) {
-      console.error('Error exporting PIN data:', error)
+      // Error is handled by showing toast message
       toast.error('Gagal mengekspor data PIN')
     } finally {
       setExporting(false)

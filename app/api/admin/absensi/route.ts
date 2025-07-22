@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ success: true, data: processedData })
   } catch (error) {
-    console.error('Error fetching absensi logs:', error)
+    // Error is handled by returning error response
     return NextResponse.json({ success: false, message: "Internal server error" }, { status: 500 })
   }
 }

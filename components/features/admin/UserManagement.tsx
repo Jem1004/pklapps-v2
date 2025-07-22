@@ -72,11 +72,9 @@ export default function UserManagement() {
       
       if (response.ok) {
         setUsers(result.data || [])
-      } else {
-        console.error('Error fetching users:', result.error)
       }
     } catch (error) {
-      console.error('Error fetching users:', error)
+      // Handle error silently
     } finally {
       setIsLoading(false)
     }
@@ -113,11 +111,9 @@ export default function UserManagement() {
         reset()
         setEditingUser(null)
       } else {
-        console.error('Error saving user:', result.error)
         alert(result.error || 'Terjadi kesalahan')
       }
     } catch (error) {
-      console.error('Error saving user:', error)
       alert('Terjadi kesalahan saat menyimpan data')
     }
   }
@@ -154,11 +150,9 @@ export default function UserManagement() {
           await fetchUsers()
         } else {
           const result = await response.json()
-          console.error('Error deleting user:', result.error)
           alert(result.error || 'Terjadi kesalahan saat menghapus user')
         }
       } catch (error) {
-        console.error('Error deleting user:', error)
         alert('Terjadi kesalahan saat menghapus user')
       }
     }

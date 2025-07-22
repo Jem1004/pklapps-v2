@@ -49,13 +49,13 @@ function AdminDashboardContent() {
     if (status === 'loading') return
     
     if (!session) {
-      console.log('Admin access denied: No session')
+      // Admin access denied: No session
       router.push('/auth/login')
       return
     }
     
     if (session.user.role !== 'ADMIN') {
-      console.log('Admin access denied:', { user: session.user, role: session.user.role })
+      // Admin access denied: redirecting to guru dashboard
       router.push('/dashboard/guru')
       return
     }
@@ -90,7 +90,7 @@ function AdminDashboardContent() {
         throw new Error(errorMessage)
       }
     } catch (error) {
-      console.error('Error loading dashboard stats:', error)
+      // Error loading dashboard stats, handled by setting error state
       
       // Handle different error types properly
       let errorMessage = 'Gagal memuat statistik dashboard'

@@ -88,7 +88,7 @@ export default function ActivityMonitoring() {
         setTeacherActivities(teachersData)
       }
     } catch (error) {
-      console.error('Error fetching activity data:', error)
+      // Silently handle fetch errors
     } finally {
       setLoading(false)
     }
