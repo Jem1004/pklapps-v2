@@ -6,7 +6,7 @@ import { ApiResponseHelper, handleApiError } from '@/lib/api';
 import { withAuth } from '@/lib/api/middleware';
 import { waktuAbsensiSettingSchema } from '@/lib/validations/waktuAbsensiSetting';
 import { Role } from '@prisma/client';
-import { invalidateGlobalWaktuAbsensiCache } from '@/lib/cache/waktuAbsensi';
+
 import { convertTimeToDbFormat } from '@/lib/utils/absensi';
 
 /**
@@ -90,8 +90,7 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Invalidate cache
-    invalidateGlobalWaktuAbsensiCache();
+
 
     return ApiResponseHelper.success(
       newSetting,

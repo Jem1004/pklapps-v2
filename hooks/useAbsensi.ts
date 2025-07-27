@@ -7,7 +7,7 @@ import { submitAbsensi as submitAbsensiAction, getRecentAbsensi as getRecentAbse
 import { TipeAbsensi } from '@prisma/client'
 import { getClientTimezone, getCurrentServerTime, syncServerTime } from '@/lib/utils/timezone'
 import { withRetry, parseError, AttendanceErrorCode } from '@/lib/errors/attendance'
-import { NetworkUtils } from '@/lib/offline/storage'
+
 import type {
   RecentAbsensi,
   AbsensiSubmitResult,
@@ -153,16 +153,7 @@ export function useAbsensi(options: UseAbsensiOptions = {}): UseAbsensiReturn {
     setIsSubmitting(true)
     
     try {
-      // Check network connectivity
-      const isOnline = await NetworkUtils.checkNetworkStatus()
-      if (!isOnline) {
-        const error = 'Tidak ada koneksi internet. Pastikan perangkat terhubung ke internet.'
-        onSubmitError?.(error)
-        return {
-          success: false,
-          message: error
-        }
-      }
+      // Network connectivity check removed - assuming online connection
 
       // Validate timezone and time
       const clientTimezone = getClientTimezone()
@@ -273,4 +264,4 @@ export function useAbsensi(options: UseAbsensiOptions = {}): UseAbsensiReturn {
     loadRecentAbsensi,
     loadTodayAbsensi
   }
-}
+} // End of useAbsensi hook

@@ -17,8 +17,7 @@ import { submitAbsensi } from '@/app/absensi/actions'
 import { TipeAbsensi } from '@prisma/client'
 
 // Import new utilities
-import { usePinStorage } from '@/lib/storage/pin'
-import { useOfflineStorage, NetworkUtils } from '@/lib/offline/storage'
+
 import { withRetry, parseError, AttendanceErrorLogger, ErrorUtils } from '@/lib/errors/attendance'
 import { getCurrentServerTime, syncServerTime, getClientTimezone } from '@/lib/utils/timezone'
 
@@ -46,9 +45,8 @@ interface FormState {
   showPin: boolean
   selectedTipe: TipeAbsensi | null
   pinSuggestions: string[]
-  connectionQuality: 'fast' | 'slow' | 'offline'
+  connectionQuality: 'fast' | 'slow'
   timezoneValid: boolean
-  offlineQueueCount: number
 }
 
 export function AbsensiForm({
@@ -66,13 +64,11 @@ export function AbsensiForm({
     selectedTipe: null,
     pinSuggestions: [],
     connectionQuality: 'fast',
-    timezoneValid: true,
-    offlineQueueCount: 0
+    timezoneValid: true
   })
   
   // Initialize hooks
-  const pinStorage = usePinStorage(userId)
-  const offlineStorage = useOfflineStorage()
+
   
   // Enhanced form with better validation
   const {
@@ -115,15 +111,13 @@ export function AbsensiForm({
     // Only check timezone once on mount
     checkTimezone()
     
-    // Get offline queue count
-    const stats = offlineStorage.getSyncStats()
-    setFormState(prev => ({ ...prev, offlineQueueCount: stats.pendingItems }))
+
   }, [])
   
   // Monitor connection quality
   useEffect(() => {
     const checkConnection = async () => {
-      const quality = await NetworkUtils.checkConnectionQuality()
+      const quality = 'fast' // Default to fast connection since offline functionality is removed
       setFormState(prev => ({ ...prev, connectionQuality: quality }))
     }
     
@@ -161,9 +155,8 @@ export function AbsensiForm({
     }
 
     // Validate PIN format
-    const pinValidation = pinStorage.validatePin(data.pin)
-    if (!pinValidation.isValid) {
-      toast.error(pinValidation.errors[0] || 'PIN tidak valid')
+    if (!data.pin || data.pin.length < 4) {
+      toast.error('PIN harus minimal 4 karakter')
       return
     }
 
@@ -179,30 +172,9 @@ export function AbsensiForm({
       // PIN storage disabled for security reasons
       // PIN should not be stored and must be entered each time
 
-      // If offline, store for later sync
-      if (!isOnline || formState.connectionQuality === 'offline') {
-        const offlineData = {
-          userId,
-          pin: data.pin,
-          type: formState.selectedTipe as 'masuk' | 'keluar',
-          timestamp: Date.now(),
-          timezone: getClientTimezone(),
-          deviceInfo: { userAgent: navigator.userAgent, platform: navigator.platform, language: navigator.language }
-        }
-        
-        const stored = offlineStorage.storeOfflineAttendance(offlineData)
-        if (stored) {
-          toast.success('Absensi disimpan offline. Akan disinkronkan saat online.')
-          reset()
-          setFormState(prev => ({ 
-            ...prev, 
-            selectedTipe: null,
-            offlineQueueCount: prev.offlineQueueCount + 1
-          }))
-          onSubmitSuccess?.()
-        } else {
-          toast.error('Gagal menyimpan absensi offline')
-        }
+      // Check if online before submitting
+      if (!isOnline) {
+        toast.error('Tidak ada koneksi internet. Silakan coba lagi saat online.')
         return
       }
 
@@ -298,44 +270,7 @@ export function AbsensiForm({
     }
   }, [])
   
-  // Sync offline data when coming back online
-  const handleSyncOfflineData = useCallback(async () => {
-    if (!isOnline) return
-    
-    try {
-      const result = await offlineStorage.syncOfflineData(async (data) => {
-        const formData = new FormData()
-        formData.append('pin', data.pin)
-        formData.append('tipe', data.type === 'masuk' ? 'MASUK' : 'PULANG')
-        formData.append('timezone', data.timezone)
-        formData.append('timestamp', new Date(data.timestamp).toISOString())
-        
-        const response = await submitAbsensi(formData) as { success: boolean }
-        return response.success
-      })
-      
-      if (result.syncedCount > 0) {
-        toast.success(`${result.syncedCount} absensi berhasil disinkronkan`)
-        setFormState(prev => ({ 
-          ...prev, 
-          offlineQueueCount: prev.offlineQueueCount - result.syncedCount 
-        }))
-      }
-      
-      if (result.failedCount > 0) {
-        toast.error(`${result.failedCount} absensi gagal disinkronkan`)
-      }
-    } catch (error) {
-      // Sync failure is handled by showing toast message
-    }
-  }, [isOnline])
-  
-  // Auto-sync when coming online
-  useEffect(() => {
-    if (isOnline && formState.offlineQueueCount > 0) {
-      handleSyncOfflineData()
-    }
-  }, [isOnline]) // Only depend on isOnline to prevent infinite loop
+
 
   // Security: Clear PIN when user leaves the page
   useEffect(() => {
@@ -497,16 +432,11 @@ export function AbsensiForm({
               <div className="bg-orange-50 border border-orange-200 p-3 rounded-lg">
                 <div className="flex items-center gap-2 text-orange-700">
                   <WifiOff className="h-4 w-4" />
-                  <span className="text-sm font-medium">Mode Offline</span>
+                  <span className="text-sm font-medium">Tidak Ada Koneksi</span>
                 </div>
                 <p className="text-xs text-orange-600 mt-1">
-                  Data akan disimpan dan dikirim saat koneksi kembali
+                  Pastikan perangkat terhubung ke internet untuk mencatat absensi
                 </p>
-                {formState.offlineQueueCount > 0 && (
-                  <p className="text-xs text-orange-600">
-                    {formState.offlineQueueCount} absensi menunggu sinkronisasi
-                  </p>
-                )}
               </div>
             )}
             
@@ -724,33 +654,12 @@ export function AbsensiForm({
               <div className="text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
                 <RefreshCw className="h-4 w-4 animate-spin" />
                 <span>
-                  {!isOnline ? 'Menyimpan offline...' : 'Memproses absensi...'}
+                  {'Memproses absensi...'}
                 </span>
               </div>
             )}
             
-            {/* Offline Queue Status */}
-            {formState.offlineQueueCount > 0 && isOnline && (
-              <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-blue-700">
-                    <RefreshCw className="h-4 w-4" />
-                    <span className="text-sm font-medium">
-                      Sinkronisasi {formState.offlineQueueCount} data...
-                    </span>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleSyncOfflineData}
-                    disabled={formState.isSubmitting}
-                  >
-                    Sinkronkan Sekarang
-                  </Button>
-                </div>
-              </div>
-            )}
+
           </form>
         </CardContent>
       </Card>

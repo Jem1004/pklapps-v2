@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Home, Clock, BookOpen, User, BarChart3 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
-import { useLocalStorage } from '@/hooks/useLocalStorage'
+
 
 interface NavItem {
   href: string
@@ -22,7 +22,7 @@ interface MobileBottomNavProps {
 
 export function MobileBottomNav({ userRole = 'student', className }: MobileBottomNavProps) {
   const pathname = usePathname()
-  const [queueCount] = useLocalStorage('offlineQueue', 0)
+
   
   const getNavItems = (): NavItem[] => {
     const baseItems: NavItem[] = [
@@ -35,7 +35,7 @@ export function MobileBottomNav({ userRole = 'student', className }: MobileBotto
         href: '/absensi',
         label: 'Absensi',
         icon: Clock,
-        badge: queueCount > 0 ? queueCount : undefined
+        badge: undefined
       },
       {
         href: '/jurnal',

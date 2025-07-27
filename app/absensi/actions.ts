@@ -14,7 +14,7 @@ import { formatDateForDatabase } from '@/lib/database/timezone'
 import { createAttendanceError, AttendanceErrorCode, AttendanceErrorLogger, AttendanceError, parseError } from '@/lib/errors/attendance'
 import { revalidateAttendanceData } from '@/lib/cache/revalidation'
 import { isOutsideWorkingHoursDynamic, getCurrentPeriodDynamic } from '@/lib/utils/absensi'
-import { invalidateGlobalWaktuAbsensiCache } from '@/lib/cache/waktuAbsensi'
+
 import prisma from '@/lib/prisma'
 
 export async function submitAbsensi(formData: FormData) {

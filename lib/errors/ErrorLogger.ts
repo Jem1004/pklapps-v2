@@ -21,8 +21,7 @@ export interface LogEntry {
 export interface ErrorLoggerConfig {
   enableConsoleLogging: boolean;
   enableRemoteLogging: boolean;
-  enableLocalStorage: boolean;
-  maxLocalStorageEntries: number;
+
   remoteEndpoint?: string;
   apiKey?: string;
   environment: 'development' | 'staging' | 'production';
@@ -31,29 +30,18 @@ export interface ErrorLoggerConfig {
 class ErrorLoggerService {
   private config: ErrorLoggerConfig;
   private logQueue: LogEntry[] = [];
-  private isOnline: boolean = typeof navigator !== 'undefined' ? navigator.onLine : true;
+
 
   constructor(config: Partial<ErrorLoggerConfig> = {}) {
     this.config = {
       enableConsoleLogging: true,
       enableRemoteLogging: false,
-      enableLocalStorage: true,
-      maxLocalStorageEntries: 100,
+
       environment: 'development',
       ...config
     };
 
-    // Listen for online/offline events (only in browser)
-    if (typeof window !== 'undefined') {
-      window.addEventListener('online', () => {
-        this.isOnline = true;
-        this.flushQueuedLogs();
-      });
 
-      window.addEventListener('offline', () => {
-        this.isOnline = false;
-      });
-    }
   }
 
   public logError(error: AppError | Error, additionalContext?: Partial<ErrorContext>): void {
@@ -115,18 +103,11 @@ class ErrorLoggerService {
       this.logToConsole(logEntry);
     }
 
-    // Local storage logging
-    if (this.config.enableLocalStorage) {
-      this.logToLocalStorage(logEntry);
-    }
+
 
     // Remote logging
     if (this.config.enableRemoteLogging) {
-      if (this.isOnline) {
-        this.logToRemote(logEntry);
-      } else {
-        this.queueLogEntry(logEntry);
-      }
+      this.logToRemote(logEntry);
     }
   }
 
@@ -160,20 +141,7 @@ class ErrorLoggerService {
     }
   }
 
-  private logToLocalStorage(logEntry: LogEntry): void {
-    if (typeof localStorage === 'undefined') {
-      return; // Skip localStorage in server-side environment
-    }
-    
-    try {
-      const existingLogs = this.getLocalStorageLogs();
-      const updatedLogs = [logEntry, ...existingLogs].slice(0, this.config.maxLocalStorageEntries);
-      
-      localStorage.setItem('app_error_logs', JSON.stringify(updatedLogs));
-    } catch (error) {
-      // Silently fail localStorage operations
-    }
-  }
+
 
   private async logToRemote(logEntry: LogEntry): Promise<void> {
     if (!this.config.remoteEndpoint) {
@@ -227,36 +195,7 @@ class ErrorLoggerService {
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
 
-  public getLocalStorageLogs(): LogEntry[] {
-    if (typeof localStorage === 'undefined') {
-      return []; // Return empty array in server-side environment
-    }
-    
-    try {
-      const logs = localStorage.getItem('app_error_logs');
-      return logs ? JSON.parse(logs) : [];
-    } catch (error) {
-      console.warn('Failed to retrieve logs from localStorage:', error);
-      return [];
-    }
-  }
 
-  public clearLocalStorageLogs(): void {
-    if (typeof localStorage === 'undefined') {
-      return; // Skip localStorage in server-side environment
-    }
-    
-    try {
-      localStorage.removeItem('app_error_logs');
-    } catch (error) {
-      // Failed to clear logs from localStorage, error handled silently
-    }
-  }
-
-  public exportLogs(): string {
-    const logs = this.getLocalStorageLogs();
-    return JSON.stringify(logs, null, 2);
-  }
 
   public updateConfig(newConfig: Partial<ErrorLoggerConfig>): void {
     this.config = { ...this.config, ...newConfig };

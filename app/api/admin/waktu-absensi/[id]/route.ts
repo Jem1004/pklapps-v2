@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/database';
 import { waktuAbsensiSettingUpdateSchema } from '@/lib/validations/waktuAbsensiSetting';
-import { invalidateGlobalWaktuAbsensiCache } from '@/lib/cache/waktuAbsensi';
+
 import { convertTimeToDbFormat } from '@/lib/utils/absensi';
 import { ApiResponseHelper } from '@/lib/api';
 import { TransactionError } from '@/lib/errors';
@@ -100,8 +100,7 @@ export async function PUT(
       });
     });
 
-    // Invalidate cache
-    invalidateGlobalWaktuAbsensiCache();
+
 
     return ApiResponseHelper.success(
       updatedSetting,
@@ -149,8 +148,7 @@ export async function DELETE(
       where: { id }
     });
 
-    // Invalidate cache
-    invalidateGlobalWaktuAbsensiCache();
+
 
     return ApiResponseHelper.success(
       null,

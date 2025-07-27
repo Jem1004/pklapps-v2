@@ -9,7 +9,7 @@ import { TouchOptimizedButton, TouchOptimizedInput } from './TouchOptimizedForm'
 import { MobileCard, MobileContainer } from '../layout/MobileOptimizedLayout'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { useLocalStorage } from '@/hooks/useLocalStorage'
+
 
 const absensiSchema = z.object({
   pin: z.string().min(4, 'PIN minimal 4 karakter').max(6, 'PIN maksimal 6 karakter'),
@@ -28,12 +28,11 @@ interface MobileAbsensiFormProps {
 export function MobileAbsensiForm({ onSubmit, className }: MobileAbsensiFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
-  const [connectionQuality, setConnectionQuality] = useState<'good' | 'poor' | 'offline'>('good')
+  const [connectionQuality, setConnectionQuality] = useState<'good' | 'poor'>('good')
   const [isValidTimeZone, setIsValidTimeZone] = useState(true)
-  const [offlineQueueCount, setOfflineQueueCount] = useState(0)
+
   
-  const [pinSuggestions] = useLocalStorage('pinSuggestions', [])
-  const [queueCount] = useLocalStorage('offlineQueue', 0)
+
   
   const {
     register,
@@ -63,7 +62,7 @@ export function MobileAbsensiForm({ onSubmit, className }: MobileAbsensiFormProp
   useEffect(() => {
     const updateConnectionStatus = () => {
       if (!navigator.onLine) {
-        setConnectionQuality('offline')
+        setConnectionQuality('poor')
         return
       }
       
@@ -83,11 +82,9 @@ export function MobileAbsensiForm({ onSubmit, className }: MobileAbsensiFormProp
     
     updateConnectionStatus()
     window.addEventListener('online', updateConnectionStatus)
-    window.addEventListener('offline', updateConnectionStatus)
     
     return () => {
       window.removeEventListener('online', updateConnectionStatus)
-      window.removeEventListener('offline', updateConnectionStatus)
     }
   }, [])
   
@@ -97,10 +94,7 @@ export function MobileAbsensiForm({ onSubmit, className }: MobileAbsensiFormProp
     setIsValidTimeZone(timezone === 'Asia/Makassar')
   }, [])
   
-  // Update offline queue count
-  useEffect(() => {
-    setOfflineQueueCount(queueCount)
-  }, [queueCount])
+
   
   // Disable PIN suggestions for security (placeholder)
   useEffect(() => {
@@ -170,8 +164,7 @@ export function MobileAbsensiForm({ onSubmit, className }: MobileAbsensiFormProp
         return <Wifi className="h-4 w-4 text-green-500" />
       case 'poor':
         return <Wifi className="h-4 w-4 text-yellow-500" />
-      case 'offline':
-        return <WifiOff className="h-4 w-4 text-red-500" />
+
     }
   }
   
@@ -181,8 +174,7 @@ export function MobileAbsensiForm({ onSubmit, className }: MobileAbsensiFormProp
         return 'Koneksi Baik'
       case 'poor':
         return 'Koneksi Lemah'
-      case 'offline':
-        return 'Offline'
+
     }
   }
   
@@ -214,14 +206,7 @@ export function MobileAbsensiForm({ onSubmit, className }: MobileAbsensiFormProp
           </Alert>
         )}
         
-        {offlineQueueCount > 0 && (
-          <Alert className="border-blue-200 bg-blue-50">
-            <AlertCircle className="h-4 w-4 text-blue-600" />
-            <AlertDescription className="text-blue-800">
-              Ada {offlineQueueCount} absensi dalam antrian offline yang akan dikirim saat koneksi tersedia.
-            </AlertDescription>
-          </Alert>
-        )}
+
         
         {/* Form */}
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">

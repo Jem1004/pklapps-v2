@@ -86,7 +86,7 @@ export default function AbsensiPage() {
 
   // Network status handlers
   const handleOnline = () => setIsOnline(true)
-  const handleOffline = () => setIsOnline(false)
+
 
   // Callback untuk form submit success
   const handleFormSubmitSuccess = useCallback(() => {
@@ -159,14 +159,14 @@ export default function AbsensiPage() {
     const handleOnlineStatus = () => setIsOnline(navigator.onLine)
     
     window.addEventListener('online', handleOnline)
-    window.addEventListener('offline', handleOffline)
+
     
     // Initial check
     handleOnlineStatus()
     
     return () => {
       window.removeEventListener('online', handleOnline)
-      window.removeEventListener('offline', handleOffline)
+  
     }
   }, [])
 
@@ -249,7 +249,7 @@ export default function AbsensiPage() {
                 ) : (
                   <>
                     <WifiOff className="h-4 w-4 text-red-500" />
-                    <span className="text-red-600 font-medium">Offline</span>
+                    <span className="text-red-600 font-medium">Tidak Ada Koneksi</span>
                   </>
                 )}
               </div>

@@ -3,7 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { ApiResponseHelper } from '@/lib/api/response';
 import { TipeAbsensi } from '@prisma/client';
-import { getCachedGlobalWaktuAbsensiSetting } from '@/lib/cache/waktuAbsensi';
+import { prisma } from '@/lib/database';
+
 
 /**
  * Helper function: Format Date ke string waktu dengan timezone server
@@ -40,7 +41,7 @@ function isTimeInRange(currentTime: string, startTime: string, endTime: string):
 async function getCurrentPeriodDynamic(
   currentTime: Date = new Date()
 ): Promise<any> {
-  const setting = await getCachedGlobalWaktuAbsensiSetting();
+  const setting = await prisma.waktuAbsensiSetting.findFirst();
   
   // Gunakan default jika tidak ada pengaturan khusus
   const jamMasukMulai = setting?.jamMasukMulai || "07:00:00";
@@ -92,7 +93,7 @@ async function isOutsideWorkingHoursDynamic(
   waktu: Date,
   tipe: TipeAbsensi
 ): Promise<boolean> {
-  const setting = await getCachedGlobalWaktuAbsensiSetting();
+  const setting = await prisma.waktuAbsensiSetting.findFirst();
   
   const waktuStr = formatTimeToString(waktu);
   

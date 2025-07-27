@@ -6,7 +6,7 @@ import { useState, useMemo, useCallback } from 'react'
 import { format } from 'date-fns'
 import { CalendarIcon, FileText, Link } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
-import { useOfflineJurnal } from '@/lib/offline/jurnalStorage'
+
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -37,7 +37,7 @@ export function JurnalForm({
   const [submitAttempts, setSubmitAttempts] = useState(0)
   const [lastError, setLastError] = useState<string | null>(null)
   const { handleError } = useErrorHandling()
-  const { storeOfflineJurnal, isOnline } = useOfflineJurnal()
+
 
   const {
     register,
@@ -76,8 +76,8 @@ export function JurnalForm({
           setSubmitAttempts(attempt)
           
           // Check if online before attempting
-          if (!isOnline()) {
-            throw new Error('Device is offline')
+          if (!navigator.onLine) {
+            throw new Error('Tidak ada koneksi internet')
           }
           
           await onSubmit(data)
@@ -99,8 +99,8 @@ export function JurnalForm({
         } catch (error) {
           // Submission attempt failed, will retry
           
-          // If this is the last attempt or device is offline, handle differently
-          if (attempt === maxRetries || !isOnline()) {
+          // If this is the last attempt, handle differently
+          if (attempt === maxRetries) {
             throw error
           }
           
@@ -112,40 +112,10 @@ export function JurnalForm({
     } catch (error) {
       // All submission attempts failed
       
-      // Store offline if device is offline and mode is create
-      if (!isOnline() && mode === 'create') {
-        const offlineData = {
-          studentId: data.studentId,
-          tanggal: data.tanggal,
-          kegiatan: data.kegiatan,
-          keterangan: data.keterangan || '',
-          dokumentasi: data.dokumentasi || '',
-          timestamp: Date.now(),
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-        }
-        
-        const stored = storeOfflineJurnal(offlineData)
-        
-        if (stored) {
-          setLastError('Tidak ada koneksi internet. Jurnal disimpan offline dan akan dikirim otomatis saat koneksi tersedia.')
-          
-          // Reset form on successful offline storage
-          reset({
-            tanggal: new Date(),
-            studentId,
-            kegiatan: '',
-            keterangan: '',
-            dokumentasi: ''
-          })
-        } else {
-          setLastError('Gagal menyimpan jurnal. Pastikan perangkat memiliki ruang penyimpanan yang cukup.')
-        }
-      } else {
-        setLastError(`Gagal ${mode === 'create' ? 'menyimpan' : 'mengupdate'} jurnal setelah ${maxRetries} percobaan.`)
-        handleError(error as Error, 'JurnalForm.handleFormSubmit', {
-          userMessage: mode === 'create' ? 'Gagal menyimpan jurnal' : 'Gagal mengupdate jurnal'
-        })
-      }
+      setLastError(`Gagal ${mode === 'create' ? 'menyimpan' : 'mengupdate'} jurnal setelah ${maxRetries} percobaan.`)
+      handleError(error as Error, 'JurnalForm.handleFormSubmit', {
+        userMessage: mode === 'create' ? 'Gagal menyimpan jurnal' : 'Gagal mengupdate jurnal'
+      })
     } finally {
       setIsSubmitting(false)
       setSubmitAttempts(0)
@@ -282,15 +252,12 @@ export function JurnalForm({
             </ul>
           </div>
 
-          {/* Connection Status & Error Display */}
-          {(lastError || !isOnline()) && (
-            <Alert className={`${!isOnline() ? 'border-yellow-200 bg-yellow-50' : lastError?.includes('offline') ? 'border-blue-200 bg-blue-50' : 'border-red-200 bg-red-50'}`}>
-              {!isOnline() ? <WifiOff className="h-4 w-4" /> : <Wifi className="h-4 w-4" />}
-              <AlertDescription className={`${!isOnline() ? 'text-yellow-800' : lastError?.includes('offline') ? 'text-blue-800' : 'text-red-800'}`}>
-                {!isOnline() 
-                  ? 'Tidak ada koneksi internet. Jurnal akan disimpan offline.' 
-                  : lastError
-                }
+          {/* Error Display */}
+          {lastError && (
+            <Alert className="border-red-200 bg-red-50">
+              <WifiOff className="h-4 w-4" />
+              <AlertDescription className="text-red-800">
+                {lastError}
               </AlertDescription>
             </Alert>
           )}
@@ -311,11 +278,7 @@ export function JurnalForm({
                     ? `Percobaan ke-${submitAttempts}...` 
                     : (mode === 'create' ? 'Menyimpan...' : 'Mengupdate...')
                 ) 
-                : (
-                  !isOnline() 
-                    ? 'Simpan Offline' 
-                    : (mode === 'create' ? 'Simpan Jurnal' : 'Update Jurnal')
-                )
+                : (mode === 'create' ? 'Simpan Jurnal' : 'Update Jurnal')
               }
             </Button>
             <Button

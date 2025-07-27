@@ -339,7 +339,7 @@ errorLogger.updateConfig({
   enableRemoteLogging: true,
   remoteEndpoint: 'https://your-logging-service.com/api/errors',
   apiKey: 'your-api-key',
-  maxLocalStorageEntries: 200
+
 });
 ```
 
@@ -415,13 +415,13 @@ Sistem error handling menyediakan metrics berikut:
 import { errorLogger } from '@/lib/errors';
 
 // Get local logs
-const logs = errorLogger.getLocalStorageLogs();
+// localStorage functionality has been removed
 
 // Export logs
 const exportedLogs = errorLogger.exportLogs();
 
 // Clear logs
-errorLogger.clearLocalStorageLogs();
+// localStorage functionality has been removed
 ```
 
 ## 🔒 Security Considerations
